@@ -126,7 +126,13 @@ export function RecipientTable() {
 
         updateRecipientStatus(recipient.id, 'Sending');
         
-        const message = encodeURIComponent(`Hello ${recipient['Full Name']}, here is your certificate: ${recipient.downloadLink}`);
+        const message = encodeURIComponent(`Dear ${recipient['Full Name']},
+Congratulations! You have successfully completed the Basic Life Support training in association with KnowTech 3.0.
+Here is your Participation Certificate recognizing your achievement.
+To view and download your certificate, please click the following link:
+${recipient.downloadLink}
+
+Thank you for being a part of this initiative and enhancing your life-saving skills!`);
         const whatsappUrl = `https://wa.me/${recipient['Whatsapp Number']}?text=${message}`;
         window.open(whatsappUrl, '_blank');
 
