@@ -28,7 +28,7 @@ export async function generateCertificate(input: GenerateCertificateInput): Prom
 const certificatePrompt = ai.definePrompt({
   name: 'certificatePrompt',
   input: {schema: GenerateCertificateInputSchema},
-  output: {schema: GenerateCertificateOutputSchema},
+  // The output is now defined by the responseModalities, not a Zod schema.
   prompt: `You are an expert graphic designer. Your task is to take a certificate template image and a recipient's name, and generate a new certificate with the name elegantly placed on it.
 
   - The recipient's name is: {{{recipientName}}}
@@ -36,8 +36,9 @@ const certificatePrompt = ai.definePrompt({
   
   Place the name "{{{recipientName}}}" prominently in the center of the certificate, where a name would typically go. Use a font style that matches the certificate's design.
   
-  Return the URL of the newly generated image.`,
+  Return ONLY the generated image. Do not return any text or JSON.`,
   config: {
+    // This tells the model to output an image directly.
     responseModalities: ['IMAGE'],
   },
 });
@@ -50,14 +51,16 @@ const generateCertificateFlow = ai.defineFlow(
   },
   async input => {
     try {
-      const {output, media} = await certificatePrompt(input);
-      if (media.url) {
+      // The 'media' object will contain the generated image data.
+      const {media} = await certificatePrompt(input);
+
+      // The URL of the generated image will be in media.url.
+      if (media?.url) {
         return {certificateUrl: media.url};
       }
-      if (output?.certificateUrl) {
-        return output;
-      }
-      throw new Error('Image generation failed to produce a URL.');
+
+      // If media.url is not present, the image generation failed.
+      throw new Error('Image generation failed to produce a valid URL.');
     } catch (error: any) {
       console.error('Error generating certificate:', error);
       // Check for quota-related errors
@@ -66,7 +69,8 @@ const generateCertificateFlow = ai.defineFlow(
           'Certificate generation failed due to high demand (Quota Exceeded). Please try again later.'
         );
       }
-      throw new Error('An unexpected error occurred during certificate generation.');
+      // Provide a more specific fallback error.
+      throw new Error(error.message || 'An unexpected error occurred during certificate generation.');
     }
   }
 );
