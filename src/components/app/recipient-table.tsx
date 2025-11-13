@@ -91,8 +91,8 @@ export function RecipientTable() {
     updateRecipientStatus(recipient.id, 'Generating');
     // Simulate certificate generation
     await new Promise(resolve => setTimeout(resolve, 2000));
-    const fakeDownloadLink = `https://example.com/certificate/${recipient.id}/${Date.now()}.pdf`;
-    updateRecipientStatus(recipient.id, 'Generated', fakeDownloadLink);
+    const certificateLink = `https://i.postimg.cc/fRWsD1YW/certificate-copy-page-0001.jpg`;
+    updateRecipientStatus(recipient.id, 'Generated', certificateLink);
     toast({
         title: "Certificate Generated",
         description: `Certificate for ${recipient['Full Name']} is ready.`,
