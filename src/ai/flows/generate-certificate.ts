@@ -7,6 +7,7 @@
 
 import { ai } from '@/ai/genkit';
 import { GenerateCertificateInputSchema, GenerateCertificateOutputSchema, type GenerateCertificateInput, type GenerateCertificateOutput } from '@/components/app/recipient-table';
+import { z } from 'zod';
 
 export async function generateCertificate(input: GenerateCertificateInput): Promise<GenerateCertificateOutput> {
   return generateCertificateFlow(input);
