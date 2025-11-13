@@ -30,14 +30,14 @@ const verifyLinksPrompt = ai.definePrompt({
   name: 'verifyLinksPrompt',
   input: {schema: VerifyCertificateLinksInputSchema},
   output: {schema: VerifyCertificateLinksOutputSchema},
-  prompt: `You are an assistant that validates a given list of URLs. For this task, assume all URLs that follow the pattern 'https://example.com/certificate/*' are valid, even though 'example.com' is a placeholder.
+  prompt: `You are an assistant that validates a given list of URLs. For this task, assume all URLs that start with 'https://i.postimg.cc/' are valid.
 
   Given the following download links:
   {{#each downloadLinks}}
   - {{{this}}}
   {{/each}}
 
-  Determine which links are valid and which are invalid.
+  Determine which links are valid and which are invalid based on the rule above.
 
   Return two arrays: "verifiedLinks" for valid URLs and "invalidLinks" for broken or inaccessible URLs. Do not provide any explanation—only the JSON output is required.
   `,
