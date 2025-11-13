@@ -1,3 +1,10 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "certificate-template",
+      "description": "A placeholder for the certificate template",
+      "imageUrl": "https://images.unsplash.com/photo-1751688405746-d554e38de1e8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxjZXJ0aWZpY2F0ZSUyMHRlbXBsYXRlfGVufDB8fHx8MTc2MzA3MzM2NHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "certificate template"
+    }
+  ]
 }
