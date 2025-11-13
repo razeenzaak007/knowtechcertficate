@@ -14,8 +14,6 @@ import { useFirestore, useCollection, useUser, useMemoFirebase } from '@/firebas
 import { collection, doc, where, query, writeBatch } from 'firebase/firestore';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { generateCertificate, GenerateCertificateInput, GenerateCertificateOutput } from '@/ai/flows/generate-certificate';
-
 
 type RecipientStatus = 'Pending' | 'Generating' | 'Generated' | 'Sending' | 'Sent' | 'Failed';
 
@@ -110,24 +108,49 @@ export function RecipientTable() {
     updateRecipient(recipient.id, { status: 'Generating' });
     toast({
       title: 'Generating Certificate...',
-      description: `The certificate for ${recipient['Full Name']} is being created by AI.`,
+      description: `The certificate for ${recipient['Full Name']} is being created.`,
     });
 
     try {
-      const result = await generateCertificate({
-        certificateTemplateUrl: templateImage.imageUrl,
-        recipientName: recipient['Full Name'],
-      });
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        throw new Error('Could not get canvas context.');
+      }
+      
+      const image = new Image();
+      image.crossOrigin = 'Anonymous'; // Required for tainted canvas
+      image.src = templateImage.imageUrl;
 
-      if (result.certificateUrl) {
-        updateRecipient(recipient.id, { status: 'Generated', downloadLink: result.certificateUrl });
+      image.onload = () => {
+        canvas.width = image.width;
+        canvas.height = image.height;
+        ctx.drawImage(image, 0, 0);
+
+        // Style the text
+        ctx.fillStyle = '#1A237E'; // Dark blue color
+        ctx.font = 'bold 60px "Literata", serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // Draw the name in the center of the certificate
+        const x = canvas.width / 2;
+        const y = canvas.height / 2;
+        ctx.fillText(recipient['Full Name'], x, y);
+
+        // Get the data URL and update the recipient
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        updateRecipient(recipient.id, { status: 'Generated', downloadLink: dataUrl });
         toast({
           title: 'Certificate Generated!',
           description: `The certificate for ${recipient['Full Name']} is ready.`,
         });
-      } else {
-        throw new Error('The AI did not return a valid certificate URL.');
-      }
+      };
+
+      image.onerror = () => {
+        throw new Error('Failed to load certificate template image.');
+      };
+
     } catch (error: any) {
       console.error(error);
       updateRecipient(recipient.id, { status: 'Failed' });
