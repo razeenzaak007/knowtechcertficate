@@ -1,9 +1,25 @@
+'use client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TemplateUploader } from '@/components/app/template-uploader';
 import { RecipientTable } from '@/components/app/recipient-table';
 import { Logo } from '@/components/logo';
+import { useAuth } from '@/firebase';
+import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
+import { useEffect } from 'react';
+import { onAuthStateChanged, User } from 'firebase/auth';
 
 export default function Home() {
+  const auth = useAuth();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user: User | null) => {
+      if (!user) {
+        initiateAnonymousSignIn(auth);
+      }
+    });
+    return () => unsubscribe();
+  }, [auth]);
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-background">
       <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6">

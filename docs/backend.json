@@ -1,145 +1,83 @@
 {
   "entities": {
-    "RecipientData": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "RecipientData",
+    "Recipient": {
+      "title": "Recipient",
       "type": "object",
-      "description": "Represents the data of a certificate recipient imported from an Excel file.",
+      "description": "Represents a certificate recipient imported from an Excel file.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the recipient data entry."
-        },
-        "excelUploadId": {
-          "type": "string",
-          "description": "Reference to the ExcelUpload entity. (Relationship: ExcelUpload 1:N RecipientData)"
+          "description": "Unique identifier for the recipient."
         },
         "fullName": {
           "type": "string",
           "description": "The full name of the certificate recipient."
         },
-        "whatsAppNumber": {
+        "age": {
+          "type": "number",
+          "description": "The age of the recipient."
+        },
+        "bloodGroup": {
+          "type": "string",
+          "description": "The blood group of the recipient."
+        },
+        "gender": {
+          "type": "string",
+          "description": "The gender of the recipient."
+        },
+        "job": {
+          "type": "string",
+          "description": "The job of the recipient."
+        },
+        "areaInKuwait": {
+          "type": "string",
+          "description": "The area in Kuwait where the recipient resides."
+        },
+        "whatsappNumber": {
           "type": "string",
           "description": "The WhatsApp number of the certificate recipient."
         },
-        "otherDetails": {
+        "emailAddress": {
           "type": "string",
-          "description": "Other details about the recipient."
+          "format": "email",
+          "description": "The email address of the recipient."
         },
-        "certificateId": {
+        "registeredAt": {
           "type": "string",
-          "description": "Reference to the Certificate entity. (Relationship: Certificate 1:1 RecipientData)"
-        }
-      },
-      "required": [
-        "id",
-        "excelUploadId",
-        "fullName",
-        "whatsAppNumber"
-      ]
-    },
-    "ExcelUpload": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "ExcelUpload",
-      "type": "object",
-      "description": "Represents an uploaded Excel file containing recipient data.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Excel upload."
+          "description": "The registration timestamp."
         },
-        "uploadDate": {
+        "checkedInAt": {
           "type": "string",
-          "description": "The date and time when the Excel file was uploaded.",
-          "format": "date-time"
+          "description": "The check-in timestamp."
         },
-        "fileName": {
+        "status": {
           "type": "string",
-          "description": "The name of the uploaded Excel file."
+          "enum": [
+            "Pending",
+            "Generating",
+            "Generated",
+            "Verifying",
+            "Sending",
+            "Sent",
+            "Failed"
+          ]
         },
-        "userId": {
+        "downloadLink": {
           "type": "string",
-          "description": "Reference to the User entity that uploaded the excel file. (Relationship: User 1:N ExcelUpload)"
-        }
-      },
-      "required": [
-        "id",
-        "uploadDate",
-        "fileName"
-      ]
-    },
-    "Certificate": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Certificate",
-      "type": "object",
-      "description": "Represents a generated certificate.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the certificate."
-        },
-        "templateId": {
-          "type": "string",
-          "description": "Reference to the CertificateTemplate entity. (Relationship: CertificateTemplate 1:N Certificate)"
-        },
-        "recipientDataId": {
-          "type": "string",
-          "description": "Reference to the RecipientData entity. (Relationship: RecipientData 1:1 Certificate)"
-        },
-        "pdfDownloadLink": {
-          "type": "string",
-          "description": "The URL for downloading the generated PDF certificate.",
           "format": "uri"
         },
-        "generationDate": {
-          "type": "string",
-          "description": "The date and time when the certificate was generated.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "templateId",
-        "pdfDownloadLink",
-        "generationDate"
-      ]
-    },
-    "CertificateTemplate": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "CertificateTemplate",
-      "type": "object",
-      "description": "Represents a certificate template.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the certificate template."
-        },
-        "templateName": {
-          "type": "string",
-          "description": "The name of the certificate template."
-        },
-        "templateFile": {
-          "type": "string",
-          "description": "The location/path of the template file."
-        },
         "userId": {
           "type": "string",
-          "description": "Reference to the User entity that owns the template. (Relationship: User 1:N CertificateTemplate)"
-        },
-        "uploadDate": {
-          "type": "string",
-          "description": "The date and time when the template was uploaded.",
-          "format": "date-time"
+          "description": "The ID of the user who owns this recipient."
         }
       },
       "required": [
-        "id",
-        "templateName",
-        "templateFile"
+        "fullName",
+        "whatsappNumber",
+        "userId"
       ]
     },
     "User": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
       "description": "Represents a user of the application.",
@@ -147,10 +85,6 @@
         "id": {
           "type": "string",
           "description": "Unique identifier for the user."
-        },
-        "userName": {
-          "type": "string",
-          "description": "The user's username."
         },
         "email": {
           "type": "string",
@@ -160,128 +94,29 @@
       },
       "required": [
         "id",
-        "userName",
         "email"
       ]
     }
   },
   "auth": {
     "providers": [
-      "password",
       "anonymous"
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user profiles. Path-based ownership ensures only the user can access their profile.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
-            }
-          ]
-        }
+    "collections": {
+      "/recipients/{recipientId}": {
+        "schema": {
+          "$ref": "#/backend/entities/Recipient"
+        },
+        "description": "Stores recipient data. The userId field enforces ownership."
       },
-      {
-        "path": "/users/{userId}/excelUploads/{excelUploadId}",
-        "definition": {
-          "entityName": "ExcelUpload",
-          "schema": {
-            "$ref": "#/backend/entities/ExcelUpload"
-          },
-          "description": "Stores Excel upload metadata.  The `userId` in the path ensures only the user can access their uploads. The security rule will ensure that the `userId` field within the ExcelUpload document matches the `{userId}` in the path, enforcing ownership.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
-            },
-            {
-              "name": "excelUploadId",
-              "description": "The unique identifier of the excel upload."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/excelUploads/{excelUploadId}/recipientData/{recipientDataId}",
-        "definition": {
-          "entityName": "RecipientData",
-          "schema": {
-            "$ref": "#/backend/entities/RecipientData"
-          },
-          "description": "Stores the recipient data extracted from the uploaded Excel files. This subcollection inherits path-based ownership from the parent `/excelUploads/{excelUploadId}` collection, meaning only the user who uploaded the Excel file can access the recipient data within.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
-            },
-            {
-              "name": "excelUploadId",
-              "description": "The unique identifier of the excel upload."
-            },
-            {
-              "name": "recipientDataId",
-              "description": "The unique identifier of the data of recipient."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/certificateTemplates/{certificateTemplateId}",
-        "definition": {
-          "entityName": "CertificateTemplate",
-          "schema": {
-            "$ref": "#/backend/entities/CertificateTemplate"
-          },
-          "description": "Stores certificate templates. The `userId` is stored in the document.",
-          "params": [
-            {
-              "name": "certificateTemplateId",
-              "description": "The unique identifier of the certificate template."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/certificates/{certificateId}",
-        "definition": {
-          "entityName": "Certificate",
-          "schema": {
-            "$ref": "#/backend/entities/Certificate"
-          },
-          "description": "Stores generated certificates. The `certificateTemplateId` and `recipientDataId` are stored in the document. The `userId` is also stored to achieve Authorization Independence.",
-          "params": [
-            {
-              "name": "certificateId",
-              "description": "The unique identifier of the certificate."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/roles_admin/{uid}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Documents in this collection grant admin privileges to the user with the corresponding `uid`. Existence check is sufficient for authorization.",
-          "params": [
-            {
-              "name": "uid",
-              "description": "The unique identifier of the user."
-            }
-          ]
-        }
+      "/users/{userId}": {
+        "schema": {
+          "$ref": "#/backend/entities/User"
+        },
+        "description": "Stores user profiles."
       }
-    ],
-    "reasoning": "The Firestore data structure is designed to ensure Authorization Independence and support secure list operations (QAPs). It uses path-based ownership for user-related data and denormalization where necessary to avoid hierarchical authorization dependencies. The structure also segregates data based on access needs for simpler security rules.\n\n*   `/users/{userId}`: Stores user profiles. Path-based ownership ensures only the user can access their profile.\n*   `/users/{userId}/excelUploads/{excelUploadId}`: Stores Excel upload metadata.  The `userId` in the path ensures only the user can access their uploads. The `excelUploadId` is a unique ID for the excel uploaded by user. The security rule will ensure that the `userId` field within the ExcelUpload document matches the `{userId}` in the path, enforcing ownership.\n*   `/users/{userId}/excelUploads/{excelUploadId}/recipientData/{recipientDataId}`: Stores the recipient data extracted from the uploaded Excel files. This subcollection inherits path-based ownership from the parent `/excelUploads/{excelUploadId}` collection, meaning only the user who uploaded the Excel file can access the recipient data within. The `recipientDataId` is a unique ID for the data of recipient uploaded by user excel.\n*   `/certificateTemplates/{certificateTemplateId}`: Stores certificate templates. The `userId` is stored in the document. To achieve authorization independence, the `userId` is copied to certificate documents (denormalization).\n*   `/certificates/{certificateId}`: Stores generated certificates. The `certificateTemplateId` and `recipientDataId` are stored in the document. The `userId` is also stored to achieve Authorization Independence.\n*   `/roles_admin/{uid}`: Documents in this collection grant admin privileges to the user with the corresponding `uid`. Existence check is sufficient for authorization.\n\nThis structure facilitates Authorization Independence by denormalizing authorization information (userId) into child documents, avoiding the need for `get()` calls in security rules. It supports QAPs through structural segregation, ensuring that listing operations are always secure within the defined ownership boundaries."
+    }
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,11 +11,14 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Card } from '../ui/card';
 import * as XLSX from 'xlsx';
+import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection, doc, updateDoc, where, query, getDocs, writeBatch } from 'firebase/firestore';
 
 type RecipientStatus = 'Pending' | 'Generating' | 'Generated' | 'Verifying' | 'Sending' | 'Sent' | 'Failed';
 
 type Recipient = {
-  id: number;
+  id: string;
   'Full Name': string;
   'Age': number;
   'Blood Group': string;
@@ -28,9 +31,8 @@ type Recipient = {
   'Checked In At': string;
   status: RecipientStatus;
   downloadLink?: string;
+  userId: string;
 };
-
-const initialRecipients: Recipient[] = [];
 
 const StatusBadge = ({ status }: { status: RecipientStatus }) => {
   let variant: 'default' | 'secondary' | 'destructive' | 'outline' = 'outline';
@@ -80,11 +82,25 @@ const StatusBadge = ({ status }: { status: RecipientStatus }) => {
 };
 
 export function RecipientTable() {
-  const [recipients, setRecipients] = useState<Recipient[]>(initialRecipients);
   const { toast } = useToast();
+  const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
 
-  const updateRecipientStatus = (id: number, status: RecipientStatus, downloadLink?: string) => {
-    setRecipients(prev => prev.map(r => r.id === id ? { ...r, status, downloadLink: downloadLink || r.downloadLink } : r));
+  const recipientsQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'recipients'), where('userId', '==', user.uid));
+  }, [firestore, user]);
+
+  const { data: recipients, isLoading: isRecipientsLoading } = useCollection<Recipient>(recipientsQuery);
+
+  const updateRecipientStatus = (id: string, status: RecipientStatus, downloadLink?: string) => {
+    if (!firestore) return;
+    const recipientRef = doc(firestore, 'recipients', id);
+    const dataToUpdate: Partial<Recipient> = { status };
+    if (downloadLink) {
+      dataToUpdate.downloadLink = downloadLink;
+    }
+    updateDocumentNonBlocking(recipientRef, dataToUpdate);
   };
   
   const generateCertificate = async (recipient: Recipient) => {
@@ -158,10 +174,19 @@ Thank you for being a part of this initiative and enhancing your life-saving ski
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user || !firestore) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Error",
+        description: "You must be logged in to upload recipients.",
+      });
+      return;
+    }
+
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         try {
           const data = e.target?.result;
           const workbook = XLSX.read(data, { type: 'array' });
@@ -169,8 +194,7 @@ Thank you for being a part of this initiative and enhancing your life-saving ski
           const worksheet = workbook.Sheets[sheetName];
           const json = XLSX.utils.sheet_to_json<any>(worksheet);
           
-          const newRecipients = json.map((row: any, index: number) => ({
-            id: index + 1,
+          const newRecipients: Omit<Recipient, 'id'>[] = json.map((row: any) => ({
             'Full Name': row['Full Name'] || 'N/A',
             'Age': row['Age'] || 0,
             'Blood Group': row['Blood Group'] || 'N/A',
@@ -182,19 +206,27 @@ Thank you for being a part of this initiative and enhancing your life-saving ski
             'Registered At': row['Registered At'] || 'N/A',
             'Checked In At': row['Checked In At'] || 'N/A',
             status: 'Pending' as RecipientStatus,
+            userId: user.uid,
           }));
 
-          setRecipients(newRecipients);
+          const recipientsCollection = collection(firestore, 'recipients');
+          const batch = writeBatch(firestore);
+          newRecipients.forEach(recipient => {
+            const docRef = doc(recipientsCollection);
+            batch.set(docRef, recipient);
+          });
+          await batch.commit();
+
           toast({
               title: "File Processed",
-              description: `${file.name} has been successfully processed.`,
+              description: `${file.name} has been successfully processed and saved.`,
           });
         } catch (error) {
           console.error("Error processing file:", error);
           toast({
             variant: "destructive",
             title: "File Processing Error",
-            description: "There was an error reading the file. Please ensure it's a valid Excel or CSV file.",
+            description: "There was an error reading or saving the file. Please ensure it's a valid Excel or CSV file.",
           });
         }
       };
@@ -236,7 +268,7 @@ Thank you for being a part of this initiative and enhancing your life-saving ski
   return (
     <div className="space-y-6">
         <div className="flex items-center gap-4">
-            <Button asChild>
+            <Button asChild disabled={isUserLoading}>
                 <label htmlFor="recipient-file-upload">
                     <Upload className="mr-2 h-4 w-4"/>
                     Upload Recipient List
@@ -259,7 +291,13 @@ Thank you for being a part of this initiative and enhancing your life-saving ski
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {recipients.length > 0 ? (
+                    {isRecipientsLoading || isUserLoading ? (
+                        <TableRow>
+                            <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                                <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+                            </TableCell>
+                        </TableRow>
+                    ) : recipients && recipients.length > 0 ? (
                         recipients.map(recipient => (
                         <TableRow key={recipient.id}>
                             <TableCell className="font-medium">{recipient['Full Name']}</TableCell>
