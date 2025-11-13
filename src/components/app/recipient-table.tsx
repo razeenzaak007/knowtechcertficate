@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Upload, Send, Loader2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Upload, Send, Loader2, CheckCircle, XCircle, AlertTriangle, Sparkles, Wand2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Card } from '../ui/card';
@@ -14,8 +14,10 @@ import { useFirestore, useCollection, useUser, useMemoFirebase } from '@/firebas
 import { collection, doc, where, query, writeBatch } from 'firebase/firestore';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { generateCertificate, GenerateCertificateInput, GenerateCertificateOutput } from '@/ai/flows/generate-certificate';
 
-type RecipientStatus = 'Pending' | 'Sending' | 'Sent' | 'Failed';
+
+type RecipientStatus = 'Pending' | 'Generating' | 'Generated' | 'Sending' | 'Sent' | 'Failed';
 
 type Recipient = {
   id: string;
@@ -44,6 +46,15 @@ const StatusBadge = ({ status }: { status: RecipientStatus }) => {
       variant = 'outline';
       icon = <AlertTriangle className="mr-1 h-3 w-3" />;
       break;
+    case 'Generating':
+        variant = 'secondary';
+        icon = <Sparkles className="mr-1 h-3 w-3 animate-pulse" />;
+        break;
+    case 'Generated':
+        variant = 'default';
+        className += ' bg-blue-500/20 text-blue-700 border-blue-500/20 hover:bg-blue-500/30';
+        icon = <CheckCircle className="mr-1 h-3 w-3 text-blue-700" />;
+        break;
     case 'Sending':
       variant = 'secondary';
       icon = <Loader2 className="mr-1 h-3 w-3 animate-spin" />;
@@ -80,31 +91,73 @@ export function RecipientTable() {
 
   const { data: recipients, isLoading: isRecipientsLoading } = useCollection<Recipient>(recipientsQuery);
 
-  const updateRecipientStatus = (id: string, status: RecipientStatus) => {
+  const updateRecipient = (id: string, data: Partial<Recipient>) => {
     if (!firestore) return;
     const recipientRef = doc(firestore, 'recipients', id);
-    const dataToUpdate: Partial<Recipient> = { status };
-    updateDocumentNonBlocking(recipientRef, dataToUpdate);
+    updateDocumentNonBlocking(recipientRef, data);
   };
   
-  const handleSend = async (recipient: Recipient) => {
+  const handleGenerate = async (recipient: Recipient) => {
     if (!templateImage?.imageUrl) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Certificate template not found.',
+      });
+      return;
+    }
+
+    updateRecipient(recipient.id, { status: 'Generating' });
+    toast({
+      title: 'Generating Certificate...',
+      description: `The certificate for ${recipient['Full Name']} is being created by AI.`,
+    });
+
+    try {
+      const result = await generateCertificate({
+        certificateTemplateUrl: templateImage.imageUrl,
+        recipientName: recipient['Full Name'],
+      });
+
+      if (result.certificateUrl) {
+        updateRecipient(recipient.id, { status: 'Generated', downloadLink: result.certificateUrl });
+        toast({
+          title: 'Certificate Generated!',
+          description: `The certificate for ${recipient['Full Name']} is ready.`,
+        });
+      } else {
+        throw new Error('The AI did not return a valid certificate URL.');
+      }
+    } catch (error: any) {
+      console.error(error);
+      updateRecipient(recipient.id, { status: 'Failed' });
+      toast({
+        variant: 'destructive',
+        title: 'Generation Failed',
+        description: error.message || 'Could not generate the certificate. Please try again.',
+      });
+    }
+  };
+
+
+  const handleSend = async (recipient: Recipient) => {
+    if (!recipient.downloadLink) {
         toast({
             variant: "destructive",
             title: "Error",
-            description: "Certificate template not found.",
+            description: "No certificate link found. Please generate the certificate first.",
         });
         return;
     }
   
-    updateRecipientStatus(recipient.id, 'Sending');
+    updateRecipient(recipient.id, { status: 'Sending' });
   
     try {
       const message = encodeURIComponent(`Dear ${recipient['Full Name']},
 Congratulations! You have successfully completed the Basic Life Support training in association with KnowTech 3.0.
 Here is your Participation Certificate recognizing your achievement.
 To view and download your certificate, please click the following link:
-${templateImage.imageUrl}
+${recipient.downloadLink}
   
 Thank you for being a part of this initiative and enhancing your life-saving skills!`);
       
@@ -114,7 +167,7 @@ Thank you for being a part of this initiative and enhancing your life-saving ski
   
       await new Promise(resolve => setTimeout(resolve, 1500)); 
   
-      updateRecipientStatus(recipient.id, 'Sent');
+      updateRecipient(recipient.id, { status: 'Sent' });
       toast({
           title: "Ready to Send!",
           description: `A WhatsApp message for ${recipient['Full Name']} is ready.`,
@@ -122,7 +175,7 @@ Thank you for being a part of this initiative and enhancing your life-saving ski
   
     } catch (error) {
         if (error instanceof Error) {
-            updateRecipientStatus(recipient.id, 'Failed');
+            updateRecipient(recipient.id, { status: 'Failed' });
             toast({
                 variant: "destructive",
                 title: "An Error Occurred",
@@ -208,6 +261,10 @@ Thank you for being a part of this initiative and enhancing your life-saving ski
     switch (recipient.status) {
       case 'Pending':
       case 'Failed':
+        return <Button size="sm" onClick={() => handleGenerate(recipient)}><Wand2 className="mr-2 h-4 w-4" /> Generate</Button>;
+      case 'Generating':
+        return <Button size="sm" disabled><Sparkles className="mr-2 h-4 w-4 animate-pulse" /> Generating...</Button>;
+      case 'Generated':
         return <Button size="sm" onClick={() => handleSend(recipient)}><Send className="mr-2 h-4 w-4" /> Send</Button>;
       case 'Sending':
         return <Button size="sm" disabled><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...</Button>;
@@ -236,9 +293,6 @@ Thank you for being a part of this initiative and enhancing your life-saving ski
                     <TableRow>
                     <TableHead>Full Name</TableHead>
                     <TableHead>WhatsApp Number</TableHead>
-                    <TableHead>Email Address</TableHead>
-                    <TableHead>Job</TableHead>
-                    <TableHead>Area in Kuwait</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -246,7 +300,7 @@ Thank you for being a part of this initiative and enhancing your life-saving ski
                 <TableBody>
                     {isRecipientsLoading || isUserLoading ? (
                         <TableRow>
-                            <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                            <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                                 <Loader2 className="mx-auto h-6 w-6 animate-spin" />
                             </TableCell>                        
                         </TableRow>
@@ -255,16 +309,13 @@ Thank you for being a part of this initiative and enhancing your life-saving ski
                         <TableRow key={recipient.id}>
                             <TableCell className="font-medium">{recipient['Full Name']}</TableCell>
                             <TableCell>{recipient['Whatsapp Number']}</TableCell>
-                            <TableCell>{recipient['Email address']}</TableCell>
-                            <TableCell>{recipient['Job']}</TableCell>
-                            <TableCell>{recipient['Area in Kuwait']}</TableCell>
                             <TableCell><StatusBadge status={recipient.status} /></TableCell>
                             <TableCell className="text-right">{getButtonForStatus(recipient)}</TableCell>
                         </TableRow>
                         ))
                     ) : (
                         <TableRow>
-                            <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                            <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                                 No recipients found. Upload a file to get started.
                             </TableCell>
                         </TableRow>
