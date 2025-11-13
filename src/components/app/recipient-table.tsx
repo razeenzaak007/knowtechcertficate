@@ -1,19 +1,35 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Upload, Send, Loader2, CheckCircle, XCircle, AlertTriangle, Sparkles } from 'lucide-react';
 import { verifyCertificateLinks } from '@/ai/flows/verify-certificate-links';
+import { generateCertificate as generateCertificateFlow } from '@/ai/flows/generate-certificate';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Card } from '../ui/card';
 import * as XLSX from 'xlsx';
-import { useAuth, useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { collection, doc, updateDoc, where, query, getDocs, writeBatch } from 'firebase/firestore';
+import { useFirestore, useCollection, useUser, useMemoFirebase } from '@/firebase';
+import { collection, doc, where, query, writeBatch } from 'firebase/firestore';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { z } from 'zod';
+
+
+export const GenerateCertificateInputSchema = z.object({
+  name: z.string().describe('The name to be written on the certificate.'),
+  templateUrl: z.string().url().describe('The URL of the certificate template image.'),
+});
+export type GenerateCertificateInput = z.infer<typeof GenerateCertificateInputSchema>;
+
+export const GenerateCertificateOutputSchema = z.object({
+  certificateUrl: z.string().describe('The data URI of the generated certificate image.'),
+});
+export type GenerateCertificateOutput = z.infer<typeof GenerateCertificateOutputSchema>;
+
 
 type RecipientStatus = 'Pending' | 'Generating' | 'Generated' | 'Verifying' | 'Sending' | 'Sent' | 'Failed';
 
@@ -85,6 +101,7 @@ export function RecipientTable() {
   const { toast } = useToast();
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const templateImage = PlaceHolderImages.find(img => img.id === 'certificate-template');
 
   const recipientsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -105,14 +122,36 @@ export function RecipientTable() {
   
   const generateCertificate = async (recipient: Recipient) => {
     updateRecipientStatus(recipient.id, 'Generating');
-    // Simulate certificate generation
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    const certificateLink = `https://i.postimg.cc/fRWsD1YW/certificate-copy-page-0001.jpg`;
-    updateRecipientStatus(recipient.id, 'Generated', certificateLink);
-    toast({
-        title: "Certificate Generated",
-        description: `Certificate for ${recipient['Full Name']} is ready.`,
-    });
+    try {
+      if (!templateImage) {
+        throw new Error('Certificate template not found.');
+      }
+      
+      toast({
+        title: "Generating Certificate...",
+        description: `Adding "${recipient['Full Name']}" to the certificate. This may take a moment.`,
+      });
+      
+      const result = await generateCertificateFlow({
+        name: recipient['Full Name'],
+        templateUrl: templateImage.imageUrl,
+      });
+
+      updateRecipientStatus(recipient.id, 'Generated', result.certificateUrl);
+
+      toast({
+          title: "Certificate Generated",
+          description: `Certificate for ${recipient['Full Name']} is ready.`,
+      });
+    } catch (error) {
+      console.error("Certificate generation failed:", error);
+      updateRecipientStatus(recipient.id, 'Failed');
+      toast({
+          variant: "destructive",
+          title: "Generation Failed",
+          description: error instanceof Error ? error.message : "An unknown error occurred during certificate generation.",
+      });
+    }
   };
 
   const handleSend = async (recipient: Recipient) => {
@@ -128,16 +167,18 @@ export function RecipientTable() {
     updateRecipientStatus(recipient.id, 'Verifying');
 
     try {
-        const result = await verifyCertificateLinks({ downloadLinks: [recipient.downloadLink] });
-
-        if (result.invalidLinks.length > 0) {
-            updateRecipientStatus(recipient.id, 'Failed');
-            toast({
-                variant: "destructive",
-                title: "Verification Failed",
-                description: `The link for ${recipient['Full Name']} is invalid.`,
-            });
-            return;
+        if (!recipient.downloadLink.startsWith('data:image')) {
+            const result = await verifyCertificateLinks({ downloadLinks: [recipient.downloadLink] });
+    
+            if (result.invalidLinks.length > 0) {
+                updateRecipientStatus(recipient.id, 'Failed');
+                toast({
+                    variant: "destructive",
+                    title: "Verification Failed",
+                    description: `The link for ${recipient['Full Name']} is invalid.`,
+                });
+                return;
+            }
         }
 
         updateRecipientStatus(recipient.id, 'Sending');
@@ -149,7 +190,9 @@ To view and download your certificate, please click the following link:
 ${recipient.downloadLink}
 
 Thank you for being a part of this initiative and enhancing your life-saving skills!`);
+        
         const whatsappUrl = `https://wa.me/${recipient['Whatsapp Number']}?text=${message}`;
+        
         window.open(whatsappUrl, '_blank');
 
 
@@ -157,8 +200,8 @@ Thank you for being a part of this initiative and enhancing your life-saving ski
 
         updateRecipientStatus(recipient.id, 'Sent');
         toast({
-            title: "Sent!",
-            description: `Certificate sent to ${recipient['Full Name']}.`,
+            title: "Ready to Send!",
+            description: `A WhatsApp message for ${recipient['Full Name']} is ready.`,
         });
 
     } catch (error) {
@@ -201,7 +244,7 @@ Thank you for being a part of this initiative and enhancing your life-saving ski
             'Gender': row['Gender'] || 'N/A',
             'Job': row['Job'] || 'N/A',
             'Area in Kuwait': row['Area in Kuwait'] || 'N/A',
-            'Whatsapp Number': row['Whatsapp Number'] || '',
+            'Whatsapp Number': String(row['Whatsapp Number'] || ''),
             'Email address': row['Email address'] || 'N/A',
             'Registered At': row['Registered At'] || 'N/A',
             'Checked In At': row['Checked In At'] || 'N/A',
@@ -255,7 +298,7 @@ Thank you for being a part of this initiative and enhancing your life-saving ski
         case 'Sent':
             return <Button size="sm" variant="outline" disabled><CheckCircle className="mr-2 h-4 w-4 text-chart-2" /> Sent</Button>;
         case 'Failed':
-             return <Button size="sm" variant="destructive" onClick={() => handleSend(recipient)}>Retry</Button>;
+             return <Button size="sm" variant="destructive" onClick={() => generateCertificate(recipient)}>Retry</Button>;
         case 'Pending':
             return <Button size="sm" onClick={() => generateCertificate(recipient)}><Sparkles className="mr-2 h-4 w-4" /> Generate</Button>;
         case 'Generating':
@@ -295,7 +338,7 @@ Thank you for being a part of this initiative and enhancing your life-saving ski
                         <TableRow>
                             <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                                 <Loader2 className="mx-auto h-6 w-6 animate-spin" />
-                            </TableCell>
+                            </TableCell>                        
                         </TableRow>
                     ) : recipients && recipients.length > 0 ? (
                         recipients.map(recipient => (
