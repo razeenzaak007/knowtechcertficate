@@ -10,21 +10,22 @@ import { verifyCertificateLinks } from '@/ai/flows/verify-certificate-links';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Card } from '../ui/card';
+import * as XLSX from 'xlsx';
 
 type RecipientStatus = 'Pending' | 'Generating' | 'Generated' | 'Verifying' | 'Sending' | 'Sent' | 'Failed';
 
 type Recipient = {
   id: number;
-  fullName: string;
-  age: number;
-  bloodGroup: string;
-  gender: string;
-  job: string;
-  areaInKuwait: string;
-  whatsappNumber: string;
-  emailAddress: string;
-  registeredAt: string;
-  checkedInAt: string;
+  'Full Name': string;
+  'Age': number;
+  'Blood Group': string;
+  'Gender': string;
+  'Job': string;
+  'Area in Kuwait': string;
+  'Whatsapp Number': string;
+  'Email address': string;
+  'Registered At': string;
+  'Checked In At': string;
   status: RecipientStatus;
   downloadLink?: string;
 };
@@ -106,7 +107,7 @@ export function RecipientTable() {
             toast({
                 variant: "destructive",
                 title: "Verification Failed",
-                description: `The link for ${recipient.fullName} is invalid.`,
+                description: `The link for ${recipient['Full Name']} is invalid.`,
             });
             return;
         }
@@ -118,7 +119,7 @@ export function RecipientTable() {
         updateRecipientStatus(recipient.id, 'Sent');
         toast({
             title: "Sent!",
-            description: `Certificate sent to ${recipient.fullName}.`,
+            description: `Certificate sent to ${recipient['Full Name']}.`,
         });
 
     } catch (error) {
@@ -136,33 +137,58 @@ export function RecipientTable() {
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-        toast({
-            title: "File Uploaded",
-            description: `${file.name} is being processed.`,
-        });
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = e.target?.result;
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const json = XLSX.utils.sheet_to_json<any>(worksheet);
+          
+          const newRecipients = json.map((row, index) => ({
+            id: index + 1,
+            'Full Name': row['Full Name'],
+            'Age': row['Age'],
+            'Blood Group': row['Blood Group'],
+            'Gender': row['Gender'],
+            'Job': row['Job'],
+            'Area in Kuwait': row['Area in Kuwait'],
+            'Whatsapp Number': row['Whatsapp Number'],
+            'Email address': row['Email address'],
+            'Registered At': row['Registered At'],
+            'Checked In At': row['Checked In At'],
+            status: 'Pending' as RecipientStatus,
+          }));
 
-        // This is a mock implementation. In a real app, you'd parse the file.
-        // I'll create mock data that includes the new fields.
-        const newRecipients: Recipient[] = [
-            { id: 1, fullName: 'John Doe', age: 30, bloodGroup: 'O+', gender: 'Male', job: 'Engineer', areaInKuwait: 'Kuwait City', whatsappNumber: '+11111111111', emailAddress: 'john.doe@example.com', registeredAt: '2023-10-26', checkedInAt: '2023-10-27', status: 'Generating' },
-            { id: 2, fullName: 'Jane Smith', age: 28, bloodGroup: 'A-', gender: 'Female', job: 'Designer', areaInKuwait: 'Salmiya', whatsappNumber: '+22222222222', emailAddress: 'jane.smith@example.com', registeredAt: '2023-10-26', checkedInAt: '2023-10-27', status: 'Generating' },
-        ];
-
-        setRecipients(newRecipients);
-
-        setTimeout(() => {
-            setRecipients(prev => prev.map((r, i) => ({
-                ...r, 
-                status: i === 0 ? 'Generated' : 'Failed', // Mock success and failure
-                downloadLink: i === 0 ? 'https://firebasestorage.googleapis.com/v0/b/genkit-llm-tools.appspot.com/o/cert.pdf?alt=media' : undefined
-            })));
-            toast({
-                title: "Processing Complete",
-                description: "Certificates have been generated.",
-            });
-        }, 3000);
+          setRecipients(newRecipients);
+          toast({
+              title: "File Processed",
+              description: `${file.name} has been successfully processed.`,
+          });
+        } catch (error) {
+          console.error("Error processing file:", error);
+          toast({
+            variant: "destructive",
+            title: "File Processing Error",
+            description: "There was an error reading the file. Please ensure it's a valid Excel or CSV file.",
+          });
+        }
+      };
+      reader.onerror = (error) => {
+          console.error("FileReader error:", error);
+          toast({
+            variant: "destructive",
+            title: "File Read Error",
+            description: "Could not read the selected file.",
+          });
+      };
+      reader.readAsArrayBuffer(file);
     }
+    // Reset file input to allow re-uploading the same file
+    event.target.value = '';
   };
+
 
   const getButtonForStatus = (recipient: Recipient) => {
     switch (recipient.status) {
@@ -211,11 +237,11 @@ export function RecipientTable() {
                     {recipients.length > 0 ? (
                         recipients.map(recipient => (
                         <TableRow key={recipient.id}>
-                            <TableCell className="font-medium">{recipient.fullName}</TableCell>
-                            <TableCell>{recipient.whatsappNumber}</TableCell>
-                            <TableCell>{recipient.emailAddress}</TableCell>
-                            <TableCell>{recipient.job}</TableCell>
-                            <TableCell>{recipient.areaInKuwait}</TableCell>
+                            <TableCell className="font-medium">{recipient['Full Name']}</TableCell>
+                            <TableCell>{recipient['Whatsapp Number']}</TableCell>
+                            <TableCell>{recipient['Email address']}</TableCell>
+                            <TableCell>{recipient['Job']}</TableCell>
+                            <TableCell>{recipient['Area in Kuwait']}</TableCell>
                             <TableCell><StatusBadge status={recipient.status} /></TableCell>
                             <TableCell className="text-right">{getButtonForStatus(recipient)}</TableCell>
                         </TableRow>
