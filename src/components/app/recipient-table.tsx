@@ -21,13 +21,7 @@ type Recipient = {
   downloadLink?: string;
 };
 
-const initialRecipients: Recipient[] = [
-  { id: 1, fullName: 'Alice Johnson', whatsappNumber: '+12345678901', status: 'Generated', downloadLink: 'https://firebasestorage.googleapis.com/v0/b/genkit-llm-tools.appspot.com/o/cert.pdf?alt=media' },
-  { id: 2, fullName: 'Bob Williams', whatsappNumber: '+12345678902', status: 'Pending' },
-  { id: 3, fullName: 'Charlie Brown', whatsappNumber: '+12345678903', status: 'Generated', downloadLink: 'https://firebasestorage.googleapis.com/v0/b/genkit-llm-tools.appspot.com/o/cert.pdf?alt=media' },
-  { id: 4, fullName: 'Diana Miller', whatsappNumber: '+12345678904', status: 'Generated', downloadLink: 'https://not-a-valid-link' },
-  { id: 5, fullName: 'Eve Davis', whatsappNumber: '+12345678905', status: 'Sent' },
-];
+const initialRecipients: Recipient[] = [];
 
 const StatusBadge = ({ status }: { status: RecipientStatus }) => {
   let variant: 'default' | 'secondary' | 'destructive' | 'outline' = 'outline';
@@ -139,9 +133,20 @@ export function RecipientTable() {
             description: `${file.name} is being processed.`,
         });
 
-        setRecipients(prev => prev.map(r => ({...r, status: 'Generating'})));
+        // This is a mock implementation. In a real app, you'd parse the file.
+        const newRecipients: Recipient[] = [
+            { id: 1, fullName: 'John Doe', whatsappNumber: '+11111111111', status: 'Generating' },
+            { id: 2, fullName: 'Jane Smith', whatsappNumber: '+22222222222', status: 'Generating' },
+        ];
+
+        setRecipients(newRecipients);
+
         setTimeout(() => {
-            setRecipients(prev => prev.map(r => ({...r, status: r.downloadLink ? 'Generated' : 'Failed'})));
+            setRecipients(prev => prev.map((r, i) => ({
+                ...r, 
+                status: i === 0 ? 'Generated' : 'Failed', // Mock success and failure
+                downloadLink: i === 0 ? 'https://firebasestorage.googleapis.com/v0/b/genkit-llm-tools.appspot.com/o/cert.pdf?alt=media' : undefined
+            })));
             toast({
                 title: "Processing Complete",
                 description: "Certificates have been generated.",
@@ -191,14 +196,22 @@ export function RecipientTable() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {recipients.map(recipient => (
-                    <TableRow key={recipient.id}>
-                        <TableCell className="font-medium">{recipient.fullName}</TableCell>
-                        <TableCell>{recipient.whatsappNumber}</TableCell>
-                        <TableCell><StatusBadge status={recipient.status} /></TableCell>
-                        <TableCell className="text-right">{getButtonForStatus(recipient)}</TableCell>
-                    </TableRow>
-                    ))}
+                    {recipients.length > 0 ? (
+                        recipients.map(recipient => (
+                        <TableRow key={recipient.id}>
+                            <TableCell className="font-medium">{recipient.fullName}</TableCell>
+                            <TableCell>{recipient.whatsappNumber}</TableCell>
+                            <TableCell><StatusBadge status={recipient.status} /></TableCell>
+                            <TableCell className="text-right">{getButtonForStatus(recipient)}</TableCell>
+                        </TableRow>
+                        ))
+                    ) : (
+                        <TableRow>
+                            <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                                Upload a file to see your recipients.
+                            </TableCell>
+                        </TableRow>
+                    )}
                 </TableBody>
             </Table>
         </Card>
