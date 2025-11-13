@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Upload, Send, Loader2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Upload, Send, Loader2, CheckCircle, XCircle, AlertTriangle, Sparkles } from 'lucide-react';
 import { verifyCertificateLinks } from '@/ai/flows/verify-certificate-links';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -83,8 +83,20 @@ export function RecipientTable() {
   const [recipients, setRecipients] = useState<Recipient[]>(initialRecipients);
   const { toast } = useToast();
 
-  const updateRecipientStatus = (id: number, status: RecipientStatus) => {
-    setRecipients(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+  const updateRecipientStatus = (id: number, status: RecipientStatus, downloadLink?: string) => {
+    setRecipients(prev => prev.map(r => r.id === id ? { ...r, status, downloadLink: downloadLink || r.downloadLink } : r));
+  };
+  
+  const generateCertificate = async (recipient: Recipient) => {
+    updateRecipientStatus(recipient.id, 'Generating');
+    // Simulate certificate generation
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    const fakeDownloadLink = `https://example.com/certificate/${recipient.id}/${Date.now()}.pdf`;
+    updateRecipientStatus(recipient.id, 'Generated', fakeDownloadLink);
+    toast({
+        title: "Certificate Generated",
+        description: `Certificate for ${recipient['Full Name']} is ready.`,
+    });
   };
 
   const handleSend = async (recipient: Recipient) => {
@@ -92,7 +104,7 @@ export function RecipientTable() {
         toast({
             variant: "destructive",
             title: "Error",
-            description: "No download link available for this recipient.",
+            description: "No download link available for this recipient. Please generate the certificate first.",
         });
         return;
     }
@@ -113,6 +125,11 @@ export function RecipientTable() {
         }
 
         updateRecipientStatus(recipient.id, 'Sending');
+        
+        const message = encodeURIComponent(`Hello ${recipient['Full Name']}, here is your certificate: ${recipient.downloadLink}`);
+        const whatsappUrl = `https://wa.me/${recipient['Whatsapp Number']}?text=${message}`;
+        window.open(whatsappUrl, '_blank');
+
 
         await new Promise(resolve => setTimeout(resolve, 1500)); 
 
@@ -146,18 +163,18 @@ export function RecipientTable() {
           const worksheet = workbook.Sheets[sheetName];
           const json = XLSX.utils.sheet_to_json<any>(worksheet);
           
-          const newRecipients = json.map((row, index) => ({
+          const newRecipients = json.map((row: any, index: number) => ({
             id: index + 1,
-            'Full Name': row['Full Name'],
-            'Age': row['Age'],
-            'Blood Group': row['Blood Group'],
-            'Gender': row['Gender'],
-            'Job': row['Job'],
-            'Area in Kuwait': row['Area in Kuwait'],
-            'Whatsapp Number': row['Whatsapp Number'],
-            'Email address': row['Email address'],
-            'Registered At': row['Registered At'],
-            'Checked In At': row['Checked In At'],
+            'Full Name': row['Full Name'] || 'N/A',
+            'Age': row['Age'] || 0,
+            'Blood Group': row['Blood Group'] || 'N/A',
+            'Gender': row['Gender'] || 'N/A',
+            'Job': row['Job'] || 'N/A',
+            'Area in Kuwait': row['Area in Kuwait'] || 'N/A',
+            'Whatsapp Number': row['Whatsapp Number'] || '',
+            'Email address': row['Email address'] || 'N/A',
+            'Registered At': row['Registered At'] || 'N/A',
+            'Checked In At': row['Checked In At'] || 'N/A',
             status: 'Pending' as RecipientStatus,
           }));
 
@@ -202,7 +219,9 @@ export function RecipientTable() {
         case 'Failed':
              return <Button size="sm" variant="destructive" onClick={() => handleSend(recipient)}>Retry</Button>;
         case 'Pending':
+            return <Button size="sm" onClick={() => generateCertificate(recipient)}><Sparkles className="mr-2 h-4 w-4" /> Generate</Button>;
         case 'Generating':
+            return <Button size="sm" disabled><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating...</Button>;
         default:
             return <Button size="sm" disabled>Send</Button>;
     }
@@ -249,7 +268,7 @@ export function RecipientTable() {
                     ) : (
                         <TableRow>
                             <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                                Upload a file to see your recipients.
+                                No recipients found. Upload a file to get started.
                             </TableCell>
                         </TableRow>
                     )}
