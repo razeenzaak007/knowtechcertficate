@@ -16,7 +16,15 @@ type RecipientStatus = 'Pending' | 'Generating' | 'Generated' | 'Verifying' | 'S
 type Recipient = {
   id: number;
   fullName: string;
+  age: number;
+  bloodGroup: string;
+  gender: string;
+  job: string;
+  areaInKuwait: string;
   whatsappNumber: string;
+  emailAddress: string;
+  registeredAt: string;
+  checkedInAt: string;
   status: RecipientStatus;
   downloadLink?: string;
 };
@@ -134,9 +142,10 @@ export function RecipientTable() {
         });
 
         // This is a mock implementation. In a real app, you'd parse the file.
+        // I'll create mock data that includes the new fields.
         const newRecipients: Recipient[] = [
-            { id: 1, fullName: 'John Doe', whatsappNumber: '+11111111111', status: 'Generating' },
-            { id: 2, fullName: 'Jane Smith', whatsappNumber: '+22222222222', status: 'Generating' },
+            { id: 1, fullName: 'John Doe', age: 30, bloodGroup: 'O+', gender: 'Male', job: 'Engineer', areaInKuwait: 'Kuwait City', whatsappNumber: '+11111111111', emailAddress: 'john.doe@example.com', registeredAt: '2023-10-26', checkedInAt: '2023-10-27', status: 'Generating' },
+            { id: 2, fullName: 'Jane Smith', age: 28, bloodGroup: 'A-', gender: 'Female', job: 'Designer', areaInKuwait: 'Salmiya', whatsappNumber: '+22222222222', emailAddress: 'jane.smith@example.com', registeredAt: '2023-10-26', checkedInAt: '2023-10-27', status: 'Generating' },
         ];
 
         setRecipients(newRecipients);
@@ -191,6 +200,9 @@ export function RecipientTable() {
                     <TableRow>
                     <TableHead>Full Name</TableHead>
                     <TableHead>WhatsApp Number</TableHead>
+                    <TableHead>Email Address</TableHead>
+                    <TableHead>Job</TableHead>
+                    <TableHead>Area in Kuwait</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -201,13 +213,16 @@ export function RecipientTable() {
                         <TableRow key={recipient.id}>
                             <TableCell className="font-medium">{recipient.fullName}</TableCell>
                             <TableCell>{recipient.whatsappNumber}</TableCell>
+                            <TableCell>{recipient.emailAddress}</TableCell>
+                            <TableCell>{recipient.job}</TableCell>
+                            <TableCell>{recipient.areaInKuwait}</TableCell>
                             <TableCell><StatusBadge status={recipient.status} /></TableCell>
                             <TableCell className="text-right">{getButtonForStatus(recipient)}</TableCell>
                         </TableRow>
                         ))
                     ) : (
                         <TableRow>
-                            <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                            <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                                 Upload a file to see your recipients.
                             </TableCell>
                         </TableRow>
