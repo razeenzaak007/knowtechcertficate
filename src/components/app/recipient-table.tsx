@@ -119,7 +119,7 @@ export function RecipientTable() {
       }
       
       const image = new Image();
-      image.crossOrigin = 'Anonymous'; // Required for tainted canvas
+      image.crossOrigin = 'Anonymous'; // This is crucial for cross-origin images
       image.src = templateImage.imageUrl;
 
       image.onload = () => {
@@ -147,7 +147,8 @@ export function RecipientTable() {
         });
       };
 
-      image.onerror = () => {
+      image.onerror = (err) => {
+        console.error('Image load error:', err);
         throw new Error('Failed to load certificate template image.');
       };
 
