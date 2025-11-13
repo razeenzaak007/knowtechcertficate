@@ -3,11 +3,24 @@
  * @fileOverview A flow to generate a personalized certificate by adding a name to a template image.
  *
  * - generateCertificate - A function that handles the certificate generation process.
+ * - GenerateCertificateInput - The input type for the certificate generation flow.
+ * - GenerateCertificateOutput - The output type for the certificate generation flow.
  */
 
 import { ai } from '@/ai/genkit';
-import { GenerateCertificateInputSchema, GenerateCertificateOutputSchema, type GenerateCertificateInput, type GenerateCertificateOutput } from '@/components/app/recipient-table';
 import { z } from 'zod';
+
+const GenerateCertificateInputSchema = z.object({
+  name: z.string().describe('The name to be written on the certificate.'),
+  templateUrl: z.string().url().describe('The URL of the certificate template image.'),
+});
+export type GenerateCertificateInput = z.infer<typeof GenerateCertificateInputSchema>;
+
+const GenerateCertificateOutputSchema = z.object({
+  certificateUrl: z.string().describe('The data URI of the generated certificate image.'),
+});
+export type GenerateCertificateOutput = z.infer<typeof GenerateCertificateOutputSchema>;
+
 
 export async function generateCertificate(input: GenerateCertificateInput): Promise<GenerateCertificateOutput> {
   return generateCertificateFlow(input);

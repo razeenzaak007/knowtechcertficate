@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Upload, Send, Loader2, CheckCircle, XCircle, AlertTriangle, Sparkles } from 'lucide-react';
 import { verifyCertificateLinks } from '@/ai/flows/verify-certificate-links';
-import { generateCertificate as generateCertificateFlow } from '@/ai/flows/generate-certificate';
+import { generateCertificate as generateCertificateFlow, type GenerateCertificateInput, type GenerateCertificateOutput } from '@/ai/flows/generate-certificate';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Card } from '../ui/card';
@@ -16,20 +16,6 @@ import { useFirestore, useCollection, useUser, useMemoFirebase } from '@/firebas
 import { collection, doc, where, query, writeBatch } from 'firebase/firestore';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { z } from 'zod';
-
-
-export const GenerateCertificateInputSchema = z.object({
-  name: z.string().describe('The name to be written on the certificate.'),
-  templateUrl: z.string().url().describe('The URL of the certificate template image.'),
-});
-export type GenerateCertificateInput = z.infer<typeof GenerateCertificateInputSchema>;
-
-export const GenerateCertificateOutputSchema = z.object({
-  certificateUrl: z.string().describe('The data URI of the generated certificate image.'),
-});
-export type GenerateCertificateOutput = z.infer<typeof GenerateCertificateOutputSchema>;
-
 
 type RecipientStatus = 'Pending' | 'Generating' | 'Generated' | 'Verifying' | 'Sending' | 'Sent' | 'Failed';
 
@@ -132,10 +118,12 @@ export function RecipientTable() {
         description: `Adding "${recipient['Full Name']}" to the certificate. This may take a moment.`,
       });
       
-      const result = await generateCertificateFlow({
+      const input: GenerateCertificateInput = {
         name: recipient['Full Name'],
         templateUrl: templateImage.imageUrl,
-      });
+      };
+
+      const result: GenerateCertificateOutput = await generateCertificateFlow(input);
 
       updateRecipientStatus(recipient.id, 'Generated', result.certificateUrl);
 
