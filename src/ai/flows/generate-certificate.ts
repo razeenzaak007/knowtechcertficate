@@ -37,7 +37,7 @@ const generateCertificateFlow = ai.defineFlow(
         model: 'googleai/gemini-2.5-flash-image-preview',
         prompt: [
             { media: { url: templateUrl } },
-            { text: `Write the name "${name}" on this certificate in the center, in an elegant, bold, calligraphic font. Do not change anything else on the certificate.` },
+            { text: `Write the name "${name}" on this certificate in the center, in an elegant, bold, calligraphic font. Do not change anything else on the certificate. If you cannot fulfill this request, please explain why.` },
         ],
         config: {
             responseModalities: ['TEXT', 'IMAGE'],

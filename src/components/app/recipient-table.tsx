@@ -132,13 +132,21 @@ export function RecipientTable() {
           description: `Certificate for ${recipient['Full Name']} is ready.`,
       });
     } catch (error) {
-      console.error("Certificate generation failed:", error);
-      updateRecipientStatus(recipient.id, 'Failed');
-      toast({
-          variant: "destructive",
-          title: "Generation Failed",
-          description: error instanceof Error ? error.message : "An unknown error occurred during certificate generation.",
-      });
+        console.error("Certificate generation failed:", error);
+        updateRecipientStatus(recipient.id, 'Failed');
+        let description = "An unknown error occurred during certificate generation.";
+        if (error instanceof Error) {
+            if (error.message.includes("429")) {
+                description = "You have exceeded the API quota. Please check your plan and usage.";
+            } else {
+                description = error.message;
+            }
+        }
+        toast({
+            variant: "destructive",
+            title: "Generation Failed",
+            description: description,
+        });
     }
   };
 
