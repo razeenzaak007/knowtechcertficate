@@ -41,6 +41,7 @@ const certificatePrompt = ai.definePrompt({
     // This tells the model to output an image directly.
     responseModalities: ['IMAGE'],
   },
+  model: 'googleai/gemini-2.5-flash-image-preview', // Specify the image model here
 });
 
 const generateCertificateFlow = ai.defineFlow(
