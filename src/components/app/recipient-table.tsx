@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Card } from '../ui/card';
 import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
 import { useFirestore, useCollection, useUser, useMemoFirebase } from '@/firebase';
 import { collection, doc, where, query, writeBatch } from 'firebase/firestore';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -119,7 +120,7 @@ export function RecipientTable() {
       }
       
       const image = new Image();
-      image.crossOrigin = 'Anonymous'; // This is crucial for cross-origin images
+      image.crossOrigin = 'Anonymous';
       image.src = templateImage.imageUrl;
 
       image.onload = () => {
@@ -127,23 +128,30 @@ export function RecipientTable() {
         canvas.height = image.height;
         ctx.drawImage(image, 0, 0);
 
-        // Style the text
-        ctx.fillStyle = '#1A237E'; // Dark blue color
+        ctx.fillStyle = '#1A237E';
         ctx.font = 'bold 60px "Literata", serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        // Draw the name in the center of the certificate
         const x = canvas.width / 2;
         const y = canvas.height / 2;
         ctx.fillText(recipient['Full Name'], x, y);
 
-        // Get the data URL and update the recipient
-        const dataUrl = canvas.toDataURL('image/jpeg');
-        updateRecipient(recipient.id, { status: 'Generated', downloadLink: dataUrl });
+        const imageDataUrl = canvas.toDataURL('image/jpeg');
+        
+        const pdf = new jsPDF({
+          orientation: 'landscape',
+          unit: 'px',
+          format: [canvas.width, canvas.height],
+        });
+
+        pdf.addImage(imageDataUrl, 'JPEG', 0, 0, canvas.width, canvas.height);
+        const pdfDataUrl = pdf.output('datauristring');
+
+        updateRecipient(recipient.id, { status: 'Generated', downloadLink: pdfDataUrl });
         toast({
           title: 'Certificate Generated!',
-          description: `The certificate for ${recipient['Full Name']} is ready.`,
+          description: `The PDF certificate for ${recipient['Full Name']} is ready.`,
         });
       };
 
@@ -179,13 +187,10 @@ export function RecipientTable() {
     try {
       const message = encodeURIComponent(`Dear ${recipient['Full Name']},
 
-Congratulations on completing the Basic Life Support training with KnowTech 3.0!
-
-Click the link below to view and download your certificate.
-
+Congratulations! Here is your certificate:
 ${recipient.downloadLink}
 
-Thank you for enhancing your life-saving skills!`);
+Thank you!`);
       
       const whatsappUrl = `https://wa.me/${recipient['Whatsapp Number']}?text=${message}`;
       
