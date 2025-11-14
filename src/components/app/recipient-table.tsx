@@ -187,7 +187,9 @@ export function RecipientTable() {
     try {
       const message = encodeURIComponent(`Dear ${recipient['Full Name']},
 
-Congratulations! You can download your certificate by clicking the link.
+Congratulations! You can download your certificate by clicking the link below.
+${recipient.downloadLink}
+
 Thank you!`);
       
       const whatsappUrl = `https://wa.me/${recipient['Whatsapp Number']}?text=${message}`;
