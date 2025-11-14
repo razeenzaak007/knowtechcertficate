@@ -1,11 +1,12 @@
 'use client';
 
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { useDoc, useMemoFirebase, initializeFirebase } from '@/firebase';
+import { doc, Firestore } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 type Recipient = {
   id: string;
@@ -16,7 +17,15 @@ type Recipient = {
 };
 
 export default function CertificatePage({ params }: { params: { id: string } }) {
-  const firestore = useFirestore();
+  const [firestore, setFirestore] = useState<Firestore | null>(null);
+
+  useEffect(() => {
+    // Initialize Firebase on the client to get a firestore instance
+    // This doesn't require a logged-in user.
+    const { firestore: fs } = initializeFirebase();
+    setFirestore(fs);
+  }, []);
+
   const templateImage = PlaceHolderImages.find(img => img.id === 'certificate-template');
 
   const recipientRef = useMemoFirebase(() => {
@@ -26,7 +35,7 @@ export default function CertificatePage({ params }: { params: { id: string } }) 
 
   const { data: recipient, isLoading } = useDoc<Recipient>(recipientRef);
 
-  if (isLoading || !templateImage) {
+  if (isLoading || !firestore || !templateImage) {
     return (
       <div className="flex min-h-screen w-full flex-col items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -49,12 +58,14 @@ export default function CertificatePage({ params }: { params: { id: string } }) 
       <Card className="w-full max-w-4xl overflow-hidden shadow-2xl">
         <CardContent className="p-0">
           <div className="relative aspect-[1.414/1] w-full">
-            <Image
-              src={templateImage.imageUrl}
-              alt="Certificate Background"
-              fill
-              className="object-cover"
-            />
+            {templateImage && (
+                <Image
+                src={templateImage.imageUrl}
+                alt="Certificate Background"
+                fill
+                className="object-cover"
+                />
+            )}
             <div className="absolute inset-0 flex items-center justify-center">
               <h1
                 className="font-headline text-4xl font-bold text-[#1A237E] md:text-6xl"
