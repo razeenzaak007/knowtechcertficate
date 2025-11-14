@@ -10,7 +10,6 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Card } from '../ui/card';
 import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
 import { useFirestore, useCollection, useUser, useMemoFirebase } from '@/firebase';
 import { collection, doc, where, query, writeBatch } from 'firebase/firestore';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -96,7 +95,7 @@ export function RecipientTable() {
     updateDocumentNonBlocking(recipientRef, data);
   };
   
-  const handleGenerate = async (recipient: Recipient) => {
+  const handleGenerate = (recipient: Recipient) => {
     if (!templateImage?.imageUrl) {
       toast({
         variant: 'destructive',
@@ -108,87 +107,33 @@ export function RecipientTable() {
 
     updateRecipient(recipient.id, { status: 'Generating' });
     toast({
-      title: 'Generating Certificate...',
-      description: `The certificate for ${recipient['Full Name']} is being created.`,
+      title: 'Generating Certificate Link...',
+      description: `The certificate link for ${recipient['Full Name']} is being prepared.`,
     });
 
-    try {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        throw new Error('Could not get canvas context.');
-      }
-      
-      const image = new Image();
-      image.crossOrigin = 'Anonymous';
-      image.src = templateImage.imageUrl;
-
-      image.onload = () => {
-        canvas.width = image.width;
-        canvas.height = image.height;
-        ctx.drawImage(image, 0, 0);
-
-        ctx.fillStyle = '#1A237E';
-        ctx.font = 'bold 60px "Literata", serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        const x = canvas.width / 2;
-        const y = canvas.height / 2;
-        ctx.fillText(recipient['Full Name'], x, y);
-
-        const imageDataUrl = canvas.toDataURL('image/jpeg');
-        
-        const pdf = new jsPDF({
-          orientation: 'landscape',
-          unit: 'px',
-          format: [canvas.width, canvas.height],
-        });
-
-        pdf.addImage(imageDataUrl, 'JPEG', 0, 0, canvas.width, canvas.height);
-        const pdfDataUrl = pdf.output('datauristring');
-
-        updateRecipient(recipient.id, { status: 'Generated', downloadLink: pdfDataUrl });
-        toast({
-          title: 'Certificate Generated!',
-          description: `The PDF certificate for ${recipient['Full Name']} is ready.`,
-        });
-      };
-
-      image.onerror = (err) => {
-        console.error('Image load error:', err);
-        throw new Error('Failed to load certificate template image.');
-      };
-
-    } catch (error: any) {
-      console.error(error);
-      updateRecipient(recipient.id, { status: 'Failed' });
+    // Simulate a short delay for UX, then mark as generated
+    setTimeout(() => {
+      // The "downloadLink" is now the path to the certificate page
+      const certificateUrl = `/certificate/${recipient.id}`;
+      updateRecipient(recipient.id, { status: 'Generated', downloadLink: certificateUrl });
       toast({
-        variant: 'destructive',
-        title: 'Generation Failed',
-        description: error.message || 'Could not generate the certificate. Please try again.',
+        title: 'Certificate Link Ready!',
+        description: `The link for ${recipient['Full Name']} is ready to be sent.`,
       });
-    }
+    }, 1000);
   };
 
 
   const handleSend = async (recipient: Recipient) => {
-    if (!recipient.downloadLink) {
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "No certificate link found. Please generate the certificate first.",
-        });
-        return;
-    }
+    const certificateUrl = `${window.location.origin}/certificate/${recipient.id}`;
   
     updateRecipient(recipient.id, { status: 'Sending' });
   
     try {
       const message = encodeURIComponent(`Dear ${recipient['Full Name']},
 
-Congratulations! You can download your certificate by clicking the link below.
-${recipient.downloadLink}
+Congratulations! You can view and download your certificate by clicking the link below.
+${certificateUrl}
 
 Thank you!`);
       
