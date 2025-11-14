@@ -11,9 +11,17 @@ import { useEffect, useState, use } from 'react';
 type Recipient = {
   id: string;
   fullName: string;
+  age: number;
+  bloodGroup: string;
+  gender: string;
+  job: string;
+  areaInKuwait: string;
+  whatsappNumber: string;
+  emailAddress: string;
+  registeredAt: string;
+  checkedInAt: string;
   status: string;
   downloadLink?: string;
-  userId: string;
 };
 
 export default function CertificatePage({ params }: { params: { id: string } }) {
