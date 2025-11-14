@@ -28,16 +28,16 @@ type RecipientStatus = 'Pending' | 'Generating' | 'Generated' | 'Sending' | 'Sen
 
 type Recipient = {
   id: string;
-  'Full Name': string;
-  'Age': number;
-  'Blood Group': string;
-  'Gender': string;
-  'Job': string;
-  'Area in Kuwait': string;
-  'Whatsapp Number': string;
-  'Email address': string;
-  'Registered At': string;
-  'Checked In At': string;
+  fullName: string;
+  age: number;
+  bloodGroup: string;
+  gender: string;
+  job: string;
+  areaInKuwait: string;
+  whatsappNumber: string;
+  emailAddress: string;
+  registeredAt: string;
+  checkedInAt: string;
   status: RecipientStatus;
   downloadLink?: string;
 };
@@ -116,7 +116,7 @@ export function RecipientTable() {
     updateRecipient(recipient.id, { status: 'Generated', downloadLink: certificateUrl });
     toast({
       title: 'Certificate Link Ready!',
-      description: `The link for ${recipient['Full Name']} is ready to be sent.`,
+      description: `The link for ${recipient.fullName} is ready to be sent.`,
     });
   };
 
@@ -131,21 +131,21 @@ export function RecipientTable() {
     }
     updateRecipient(recipient.id, { status: 'Sending' });
     try {
-        const message = encodeURIComponent(`Dear ${recipient['Full Name']},
+        const message = encodeURIComponent(`Dear ${recipient.fullName},
 
 Congratulations! You can view and download your certificate by clicking the link below.
 ${recipient.downloadLink}
 
 Thank you!`);
 
-        const whatsappUrl = `https://wa.me/${recipient['Whatsapp Number']}?text=${message}`;
+        const whatsappUrl = `https://wa.me/${recipient.whatsappNumber}?text=${message}`;
         window.open(whatsappUrl, '_blank');
 
         setTimeout(() => {
             updateRecipient(recipient.id, { status: 'Sent' });
             toast({
                 title: "Ready to Send!",
-                description: `A WhatsApp message for ${recipient['Full Name']} is ready.`,
+                description: `A WhatsApp message for ${recipient.fullName} is ready.`,
             });
         }, 1500);
 
@@ -183,16 +183,16 @@ Thank you!`);
           const json = XLSX.utils.sheet_to_json<any>(worksheet);
           
           const newRecipients: Omit<Recipient, 'id'>[] = json.map((row: any) => ({
-            'Full Name': row['Full Name'] || 'N/A',
-            'Age': row['Age'] || 0,
-            'Blood Group': row['Blood Group'] || 'N/A',
-            'Gender': row['Gender'] || 'N/A',
-            'Job': row['Job'] || 'N/A',
-            'Area in Kuwait': row['Area in Kuwait'] || 'N/A',
-            'Whatsapp Number': String(row['Whatsapp Number'] || ''),
-            'Email address': row['Email address'] || 'N/A',
-            'Registered At': row['Registered At'] || 'N/A',
-            'Checked In At': row['Checked In At'] || 'N/A',
+            fullName: row['Full Name'] || 'N/A',
+            age: row['Age'] || 0,
+            bloodGroup: row['Blood Group'] || 'N/A',
+            gender: row['Gender'] || 'N/A',
+            job: row['Job'] || 'N/A',
+            areaInKuwait: row['Area in Kuwait'] || 'N/A',
+            whatsappNumber: String(row['Whatsapp Number'] || ''),
+            emailAddress: row['Email address'] || 'N/A',
+            registeredAt: row['Registered At'] || 'N/A',
+            checkedInAt: row['Checked In At'] || 'N/A',
             status: 'Pending' as RecipientStatus,
           }));
 
@@ -346,8 +346,8 @@ Thank you!`);
                       ) : recipients && recipients.length > 0 ? (
                           recipients.map(recipient => (
                           <TableRow key={recipient.id}>
-                              <TableCell className="font-medium">{recipient['Full Name']}</TableCell>
-                              <TableCell>{recipient['Whatsapp Number']}</TableCell>
+                              <TableCell className="font-medium">{recipient.fullName}</TableCell>
+                              <TableCell>{recipient.whatsappNumber}</TableCell>
                               <TableCell><StatusBadge status={recipient.status} /></TableCell>
                               <TableCell className="text-right">{getButtonForStatus(recipient)}</TableCell>
                           </TableRow>
