@@ -10,7 +10,8 @@ import { useEffect, useState, use } from 'react';
 
 type Recipient = {
   id: string;
-  fullName: string;
+  fullName?: string;
+  'Full Name'?: string; // Add fallback for old data
   age: number;
   bloodGroup: string;
   gender: string;
@@ -61,6 +62,8 @@ export default function CertificatePage({ params }: { params: { id: string } }) 
       </div>
     );
   }
+  
+  const recipientName = recipient.fullName || recipient['Full Name'] || 'Recipient Name';
 
   return (
     <div className="flex min-h-screen w-full flex-col items-center justify-center bg-gray-100 p-4 sm:p-8">
@@ -80,14 +83,14 @@ export default function CertificatePage({ params }: { params: { id: string } }) 
                 className="font-headline text-3xl font-bold text-[#00838f] md:text-5xl"
                 style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.1)' }}
               >
-                {recipient.fullName}
+                {recipientName}
               </h1>
             </div>
           </div>
         </CardContent>
       </Card>
       <p className="mt-4 text-sm text-gray-500">
-        Congratulations, {recipient.fullName}!
+        Congratulations, {recipientName}!
       </p>
     </div>
   );
