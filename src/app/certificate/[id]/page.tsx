@@ -67,9 +67,9 @@ export default function CertificatePage({ params }: { params: { id: string } }) 
                 className="object-cover"
                 />
             )}
-            <div className="absolute inset-0 flex items-center justify-center">
+            <div className="absolute inset-0 flex flex-col items-center justify-center pt-8">
               <h1
-                className="font-headline text-4xl font-bold text-[#1A237E] md:text-6xl"
+                className="font-headline text-3xl font-bold text-[#00838f] md:text-5xl"
                 style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.1)' }}
               >
                 {recipient.fullName}
