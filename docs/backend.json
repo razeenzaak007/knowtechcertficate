@@ -65,43 +65,16 @@
         "downloadLink": {
           "type": "string",
           "format": "uri"
-        },
-        "userId": {
-          "type": "string",
-          "description": "The ID of the user who owns this recipient."
         }
       },
       "required": [
         "fullName",
-        "whatsappNumber",
-        "userId"
-      ]
-    },
-    "User": {
-      "title": "User",
-      "type": "object",
-      "description": "Represents a user of the application.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the user."
-        },
-        "email": {
-          "type": "string",
-          "description": "The user's email address.",
-          "format": "email"
-        }
-      },
-      "required": [
-        "id",
-        "email"
+        "whatsappNumber"
       ]
     }
   },
   "auth": {
-    "providers": [
-      "email-password"
-    ]
+    "providers": []
   },
   "firestore": {
     "collections": {
@@ -109,13 +82,7 @@
         "schema": {
           "$ref": "#/backend/entities/Recipient"
         },
-        "description": "Stores recipient data. The userId field enforces ownership."
-      },
-      "/users/{userId}": {
-        "schema": {
-          "$ref": "#/backend/entities/User"
-        },
-        "description": "Stores user profiles."
+        "description": "Stores recipient data."
       }
     }
   }

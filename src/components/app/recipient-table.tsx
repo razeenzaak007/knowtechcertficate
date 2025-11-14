@@ -10,8 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Card } from '../ui/card';
 import * as XLSX from 'xlsx';
-import { useFirestore, useCollection, useUser, useMemoFirebase } from '@/firebase';
-import { collection, doc, where, query, writeBatch, getDocs, deleteDoc } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, doc, query, writeBatch, getDocs } from 'firebase/firestore';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +23,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import jsPDF from 'jspdf';
 
 type RecipientStatus = 'Pending' | 'Generating' | 'Generated' | 'Sending' | 'Sent' | 'Failed';
 
@@ -40,7 +41,6 @@ type Recipient = {
   'Checked In At': string;
   status: RecipientStatus;
   downloadLink?: string;
-  userId: string;
 };
 
 const StatusBadge = ({ status }: { status: RecipientStatus }) => {
@@ -87,15 +87,14 @@ const StatusBadge = ({ status }: { status: RecipientStatus }) => {
 
 export function RecipientTable() {
   const { toast } = useToast();
-  const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const [isClearing, setIsClearing] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
   const recipientsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return query(collection(firestore, 'recipients'), where('userId', '==', user.uid));
-  }, [firestore, user]);
+    if (!firestore) return null;
+    return query(collection(firestore, 'recipients'));
+  }, [firestore]);
 
   const { data: recipients, isLoading: isRecipientsLoading } = useCollection<Recipient>(recipientsQuery);
 
@@ -106,14 +105,6 @@ export function RecipientTable() {
   };
   
   const handleGenerate = (recipient: Recipient) => {
-    updateRecipient(recipient.id, { status: 'Generated' });
-    toast({
-      title: 'Certificate Link Ready!',
-      description: `The link for ${recipient['Full Name']} is ready to be sent.`,
-    });
-  };
-
-  const handleSend = (recipient: Recipient) => {
     if (!recipient.id) {
         toast({
             variant: "destructive",
@@ -123,14 +114,28 @@ export function RecipientTable() {
         return;
     }
     const certificateUrl = `${window.location.origin}/certificate/${recipient.id}`;
+    updateRecipient(recipient.id, { status: 'Generated', downloadLink: certificateUrl });
+    toast({
+      title: 'Certificate Link Ready!',
+      description: `The link for ${recipient['Full Name']} is ready to be sent.`,
+    });
+  };
 
+  const handleSend = (recipient: Recipient) => {
+    if (!recipient.downloadLink) {
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "No certificate link found. Please generate it first.",
+        });
+        return;
+    }
     updateRecipient(recipient.id, { status: 'Sending' });
-
     try {
         const message = encodeURIComponent(`Dear ${recipient['Full Name']},
 
 Congratulations! You can view and download your certificate by clicking the link below.
-${certificateUrl}
+${recipient.downloadLink}
 
 Thank you!`);
 
@@ -158,11 +163,11 @@ Thank you!`);
   };
   
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!user || !firestore) {
+    if (!firestore) {
       toast({
         variant: "destructive",
-        title: "Authentication Error",
-        description: "You must be logged in to upload recipients.",
+        title: "Database Error",
+        description: "Firestore is not available.",
       });
       return;
     }
@@ -190,7 +195,6 @@ Thank you!`);
             'Registered At': row['Registered At'] || 'N/A',
             'Checked In At': row['Checked In At'] || 'N/A',
             status: 'Pending' as RecipientStatus,
-            userId: user.uid,
           }));
 
           const recipientsCollection = collection(firestore, 'recipients');
@@ -247,17 +251,17 @@ Thank you!`);
   }
 
   const handleClearAll = async () => {
-    if (!firestore || !user) {
+    if (!firestore) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Could not clear data. User or database not available.",
+        description: "Could not clear data. Database not available.",
       });
       return;
     }
     setIsClearing(true);
     try {
-      const q = query(collection(firestore, 'recipients'), where('userId', '==', user.uid));
+      const q = query(collection(firestore, 'recipients'));
       const querySnapshot = await getDocs(q);
       const batch = writeBatch(firestore);
       querySnapshot.forEach((doc) => {
@@ -304,7 +308,7 @@ Thank you!`);
 
       <div className="space-y-6">
           <div className="flex items-center gap-4">
-              <Button asChild disabled={isUserLoading}>
+              <Button asChild>
                   <label htmlFor="recipient-file-upload">
                       <Upload className="mr-2 h-4 w-4"/>
                       Upload Recipient List
@@ -316,7 +320,7 @@ Thank you!`);
                 <Button 
                   variant="destructive" 
                   onClick={() => setIsClearConfirmOpen(true)}
-                  disabled={isUserLoading || isRecipientsLoading || !recipients || recipients.length === 0 || isClearing}
+                  disabled={isRecipientsLoading || !recipients || recipients.length === 0 || isClearing}
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Clear All
@@ -334,7 +338,7 @@ Thank you!`);
                       </TableRow>
                   </TableHeader>
                   <TableBody>
-                      {isRecipientsLoading || isUserLoading ? (
+                      {isRecipientsLoading ? (
                           <TableRow>
                               <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                                   <Loader2 className="mx-auto h-6 w-6 animate-spin" />
