@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Loader2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 
 type Recipient = {
   id: string;
@@ -17,6 +17,7 @@ type Recipient = {
 };
 
 export default function CertificatePage({ params }: { params: { id: string } }) {
+  const resolvedParams = use(params);
   const [firestore, setFirestore] = useState<Firestore | null>(null);
 
   useEffect(() => {
@@ -29,9 +30,9 @@ export default function CertificatePage({ params }: { params: { id: string } }) 
   const templateImage = PlaceHolderImages.find(img => img.id === 'certificate-template');
 
   const recipientRef = useMemoFirebase(() => {
-    if (!firestore || !params.id) return null;
-    return doc(firestore, 'recipients', params.id);
-  }, [firestore, params.id]);
+    if (!firestore || !resolvedParams.id) return null;
+    return doc(firestore, 'recipients', resolvedParams.id);
+  }, [firestore, resolvedParams.id]);
 
   const { data: recipient, isLoading } = useDoc<Recipient>(recipientRef);
 
