@@ -76,7 +76,7 @@ export default function CertificatePage({ params }: { params: { id: string } }) 
             ctx.textBaseline = 'middle';
             
             // Adjust font size and position relative to canvas size
-            const fontSize = canvas.width * 0.04; 
+            const fontSize = canvas.width * 0.035; 
             ctx.font = `bold ${fontSize}px Literata, serif`;
             ctx.fillStyle = 'black';
             
