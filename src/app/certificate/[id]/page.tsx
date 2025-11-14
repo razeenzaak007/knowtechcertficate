@@ -9,7 +9,7 @@ import { Loader2 } from 'lucide-react';
 
 type Recipient = {
   id: string;
-  'Full Name': string;
+  fullName: string;
   status: string;
   downloadLink?: string;
   userId: string;
@@ -60,14 +60,14 @@ export default function CertificatePage({ params }: { params: { id: string } }) 
                 className="font-headline text-4xl font-bold text-[#1A237E] md:text-6xl"
                 style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.1)' }}
               >
-                {recipient['Full Name']}
+                {recipient.fullName}
               </h1>
             </div>
           </div>
         </CardContent>
       </Card>
       <p className="mt-4 text-sm text-gray-500">
-        Congratulations, {recipient['Full Name']}!
+        Congratulations, {recipient.fullName}!
       </p>
     </div>
   );
