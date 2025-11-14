@@ -36,12 +36,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.externals.push('jspdf');
-    }
-    return config;
-  },
 };
 
 export default nextConfig;
