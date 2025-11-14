@@ -80,7 +80,7 @@ export default function CertificatePage({ params }: { params: { id: string } }) 
             )}
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform text-center" style={{ width: '80%', top: '52%' }}>
               <h1
-                className="font-headline text-base font-bold text-black md:text-xl"
+                className="font-headline text-sm font-bold text-black md:text-lg"
                 style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.1)' }}
               >
                 {recipientName}
