@@ -5,14 +5,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Upload, Send, Loader2, CheckCircle, XCircle, AlertTriangle, Sparkles, Wand2 } from 'lucide-react';
+import { Upload, Send, Loader2, CheckCircle, XCircle, AlertTriangle, Sparkles, Wand2, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Card } from '../ui/card';
 import * as XLSX from 'xlsx';
 import { useFirestore, useCollection, useUser, useMemoFirebase } from '@/firebase';
-import { collection, doc, where, query, writeBatch } from 'firebase/firestore';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { collection, doc, where, query, writeBatch, getDocs, deleteDoc } from 'firebase/firestore';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 type RecipientStatus = 'Pending' | 'Generating' | 'Generated' | 'Sending' | 'Sent' | 'Failed';
@@ -80,7 +89,8 @@ export function RecipientTable() {
   const { toast } = useToast();
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
-  const templateImage = PlaceHolderImages.find(img => img.id === 'certificate-template');
+  const [isClearing, setIsClearing] = useState(false);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
   const recipientsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -96,72 +106,57 @@ export function RecipientTable() {
   };
   
   const handleGenerate = (recipient: Recipient) => {
-    if (!templateImage?.imageUrl) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Certificate template not found.',
-      });
-      return;
-    }
-
-    updateRecipient(recipient.id, { status: 'Generating' });
+    updateRecipient(recipient.id, { status: 'Generated' });
     toast({
-      title: 'Generating Certificate Link...',
-      description: `The certificate link for ${recipient['Full Name']} is being prepared.`,
+      title: 'Certificate Link Ready!',
+      description: `The link for ${recipient['Full Name']} is ready to be sent.`,
     });
-
-    // Simulate a short delay for UX, then mark as generated
-    setTimeout(() => {
-      // The "downloadLink" is now the path to the certificate page
-      const certificateUrl = `/certificate/${recipient.id}`;
-      updateRecipient(recipient.id, { status: 'Generated', downloadLink: certificateUrl });
-      toast({
-        title: 'Certificate Link Ready!',
-        description: `The link for ${recipient['Full Name']} is ready to be sent.`,
-      });
-    }, 1000);
   };
 
-
-  const handleSend = async (recipient: Recipient) => {
+  const handleSend = (recipient: Recipient) => {
+    if (!recipient.id) {
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Recipient ID is missing. Cannot create a link.",
+        });
+        return;
+    }
     const certificateUrl = `${window.location.origin}/certificate/${recipient.id}`;
-  
+
     updateRecipient(recipient.id, { status: 'Sending' });
-  
+
     try {
-      const message = encodeURIComponent(`Dear ${recipient['Full Name']},
+        const message = encodeURIComponent(`Dear ${recipient['Full Name']},
 
 Congratulations! You can view and download your certificate by clicking the link below.
 ${certificateUrl}
 
 Thank you!`);
-      
-      const whatsappUrl = `https://wa.me/${recipient['Whatsapp Number']}?text=${message}`;
-      
-      window.open(whatsappUrl, '_blank');
-  
-      await new Promise(resolve => setTimeout(resolve, 1500)); 
-  
-      updateRecipient(recipient.id, { status: 'Sent' });
-      toast({
-          title: "Ready to Send!",
-          description: `A WhatsApp message for ${recipient['Full Name']} is ready.`,
-      });
-  
+
+        const whatsappUrl = `https://wa.me/${recipient['Whatsapp Number']}?text=${message}`;
+        window.open(whatsappUrl, '_blank');
+
+        setTimeout(() => {
+            updateRecipient(recipient.id, { status: 'Sent' });
+            toast({
+                title: "Ready to Send!",
+                description: `A WhatsApp message for ${recipient['Full Name']} is ready.`,
+            });
+        }, 1500);
+
     } catch (error) {
         if (error instanceof Error) {
             updateRecipient(recipient.id, { status: 'Failed' });
             toast({
                 variant: "destructive",
                 title: "An Error Occurred",
-                description: error.message || "Could not send the certificate. Please try again.",
+                description: error.message || "Could not prepare the certificate message.",
             });
         }
     }
   };
   
-
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!user || !firestore) {
       toast({
@@ -251,54 +246,120 @@ Thank you!`);
     }
   }
 
+  const handleClearAll = async () => {
+    if (!firestore || !user) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not clear data. User or database not available.",
+      });
+      return;
+    }
+    setIsClearing(true);
+    try {
+      const q = query(collection(firestore, 'recipients'), where('userId', '==', user.uid));
+      const querySnapshot = await getDocs(q);
+      const batch = writeBatch(firestore);
+      querySnapshot.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+      await batch.commit();
+      toast({
+        title: "Data Cleared",
+        description: "All recipient data has been successfully removed.",
+      });
+    } catch (error) {
+      console.error("Error clearing data:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An unexpected error occurred while clearing the data.",
+      });
+    } finally {
+      setIsClearing(false);
+      setIsClearConfirmOpen(false);
+    }
+  };
+
   return (
-    <div className="space-y-6">
-        <div className="flex items-center gap-4">
-            <Button asChild disabled={isUserLoading}>
-                <label htmlFor="recipient-file-upload">
-                    <Upload className="mr-2 h-4 w-4"/>
-                    Upload Recipient List
-                </label>
-            </Button>
-            <Input id="recipient-file-upload" type="file" className="hidden" onChange={handleFileUpload} accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" />
-            <p className="text-sm text-muted-foreground">Upload an Excel or CSV file.</p>
-        </div>
-        <Card className="border shadow-sm">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                    <TableHead>Full Name</TableHead>
-                    <TableHead>WhatsApp Number</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {isRecipientsLoading || isUserLoading ? (
-                        <TableRow>
-                            <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                                <Loader2 className="mx-auto h-6 w-6 animate-spin" />
-                            </TableCell>                        
-                        </TableRow>
-                    ) : recipients && recipients.length > 0 ? (
-                        recipients.map(recipient => (
-                        <TableRow key={recipient.id}>
-                            <TableCell className="font-medium">{recipient['Full Name']}</TableCell>
-                            <TableCell>{recipient['Whatsapp Number']}</TableCell>
-                            <TableCell><StatusBadge status={recipient.status} /></TableCell>
-                            <TableCell className="text-right">{getButtonForStatus(recipient)}</TableCell>
-                        </TableRow>
-                        ))
-                    ) : (
-                        <TableRow>
-                            <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                                No recipients found. Upload a file to get started.
-                            </TableCell>
-                        </TableRow>
-                    )}
-                </TableBody>
-            </Table>
-        </Card>
-    </div>
+    <>
+      <AlertDialog open={isClearConfirmOpen} onOpenChange={setIsClearConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete all
+              recipient data from the database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleClearAll} disabled={isClearing}>
+              {isClearing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Yes, delete all
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <div className="space-y-6">
+          <div className="flex items-center gap-4">
+              <Button asChild disabled={isUserLoading}>
+                  <label htmlFor="recipient-file-upload">
+                      <Upload className="mr-2 h-4 w-4"/>
+                      Upload Recipient List
+                  </label>
+              </Button>
+              <Input id="recipient-file-upload" type="file" className="hidden" onChange={handleFileUpload} accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" />
+              <p className="text-sm text-muted-foreground">Upload an Excel or CSV file.</p>
+              <div className="ml-auto">
+                <Button 
+                  variant="destructive" 
+                  onClick={() => setIsClearConfirmOpen(true)}
+                  disabled={isUserLoading || isRecipientsLoading || !recipients || recipients.length === 0 || isClearing}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Clear All
+                </Button>
+              </div>
+          </div>
+          <Card className="border shadow-sm">
+              <Table>
+                  <TableHeader>
+                      <TableRow>
+                      <TableHead>Full Name</TableHead>
+                      <TableHead>WhatsApp Number</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                      {isRecipientsLoading || isUserLoading ? (
+                          <TableRow>
+                              <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                                  <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+                              </TableCell>                        
+                          </TableRow>
+                      ) : recipients && recipients.length > 0 ? (
+                          recipients.map(recipient => (
+                          <TableRow key={recipient.id}>
+                              <TableCell className="font-medium">{recipient['Full Name']}</TableCell>
+                              <TableCell>{recipient['Whatsapp Number']}</TableCell>
+                              <TableCell><StatusBadge status={recipient.status} /></TableCell>
+                              <TableCell className="text-right">{getButtonForStatus(recipient)}</TableCell>
+                          </TableRow>
+                          ))
+                      ) : (
+                          <TableRow>
+                              <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                                  No recipients found. Upload a file to get started.
+                              </TableCell>
+                          </TableRow>
+                      )}
+                  </TableBody>
+              </Table>
+          </Card>
+      </div>
+    </>
   );
 }
