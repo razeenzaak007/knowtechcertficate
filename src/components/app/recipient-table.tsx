@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Upload, Send, Loader2, CheckCircle, XCircle, AlertTriangle, Sparkles, Wand2, Trash2 } from 'lucide-react';
+import { Upload, Send, Loader2, CheckCircle, XCircle, AlertTriangle, Sparkles, Wand2, Trash2, MoreVertical, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Card } from '../ui/card';
@@ -22,6 +22,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 type RecipientStatus = 'Pending' | 'Generating' | 'Generated' | 'Sending' | 'Sent' | 'Failed';
@@ -160,6 +167,57 @@ Thank you!`);
         }
     }
   };
+
+  const handleSendEmail = (recipient: Recipient) => {
+    if (!recipient.downloadLink) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No certificate link found. Please generate it first.",
+      });
+      return;
+    }
+
+    if (!recipient.emailAddress || recipient.emailAddress === 'N/A') {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No email address found for this recipient.",
+      });
+      return;
+    }
+
+    updateRecipient(recipient.id, { status: 'Sending' });
+    try {
+      const subject = encodeURIComponent(`Your Certificate is Ready!`);
+      const body = encodeURIComponent(`Dear ${recipient.fullName},
+
+Congratulations! You can view and download your certificate by clicking the link below.
+${recipient.downloadLink}
+
+Thank you!`);
+
+      const mailtoUrl = `mailto:${recipient.emailAddress}?subject=${subject}&body=${body}`;
+      window.open(mailtoUrl, '_blank');
+
+      setTimeout(() => {
+        updateRecipient(recipient.id, { status: 'Sent' });
+        toast({
+          title: "Email Ready!",
+          description: `An email for ${recipient.fullName} is ready to be sent.`,
+        });
+      }, 1500);
+    } catch (error) {
+      if (error instanceof Error) {
+        updateRecipient(recipient.id, { status: 'Failed' });
+        toast({
+          variant: "destructive",
+          title: "An Error Occurred",
+          description: error.message || "Could not prepare the email.",
+        });
+      }
+    }
+  };
   
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!firestore) {
@@ -230,22 +288,79 @@ Thank you!`);
     event.target.value = '';
   };
 
+  const getButtonForStatus = (recipient: Recipient, isMobile: boolean) => {
+    const commonProps = {
+      size: "sm" as const,
+      className: "w-full sm:w-auto"
+    };
 
-  const getButtonForStatus = (recipient: Recipient) => {
+    const generateButton = (
+      <Button {...commonProps} onClick={() => handleGenerate(recipient)}>
+        <Wand2 className="mr-2 h-4 w-4" /> Generate
+      </Button>
+    );
+
+    const generateDropdownItem = (
+      <DropdownMenuItem onClick={() => handleGenerate(recipient)}>
+        <Wand2 className="mr-2 h-4 w-4" /> Generate
+      </DropdownMenuItem>
+    );
+    
+    if (isMobile) {
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {recipient.status === 'Pending' || recipient.status === 'Failed' ? (
+              generateDropdownItem
+            ) : recipient.status === 'Generated' || recipient.status === 'Sent' ? (
+              <>
+                <DropdownMenuItem onClick={() => handleSend(recipient)}>
+                  <Send className="mr-2 h-4 w-4" /> WhatsApp
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleSendEmail(recipient)}>
+                  <Mail className="mr-2 h-4 w-4" /> Email
+                </DropdownMenuItem>
+                <DropdownMenuSeparator/>
+                 <DropdownMenuItem onClick={() => handleGenerate(recipient)}>
+                  <Wand2 className="mr-2 h-4 w-4" /> Re-Generate
+                </DropdownMenuItem>
+              </>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
+    }
+
     switch (recipient.status) {
       case 'Pending':
       case 'Failed':
-        return <Button size="sm" onClick={() => handleGenerate(recipient)}><Wand2 className="mr-2 h-4 w-4" /> Generate</Button>;
+        return generateButton;
       case 'Generating':
-        return <Button size="sm" disabled><Sparkles className="mr-2 h-4 w-4 animate-pulse" /> Generating...</Button>;
+        return <Button {...commonProps} disabled><Sparkles className="mr-2 h-4 w-4 animate-pulse" /> Generating...</Button>;
       case 'Generated':
-        return <Button size="sm" onClick={() => handleSend(recipient)}><Send className="mr-2 h-4 w-4" /> Send</Button>;
-      case 'Sending':
-        return <Button size="sm" disabled><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...</Button>;
       case 'Sent':
-        return <Button size="sm" variant="outline" onClick={() => handleSend(recipient)}><CheckCircle className="mr-2 h-4 w-4 text-chart-2" /> Re-send</Button>;
+         const buttonVariant = recipient.status === 'Sent' ? 'outline' : 'default';
+         const buttonText = recipient.status === 'Sent' ? 'Re-send' : 'Send';
+         return (
+          <div className="flex gap-2 justify-end">
+            <Button {...commonProps} variant={buttonVariant} onClick={() => handleSend(recipient)}>
+              {recipient.status === 'Sent' ? <CheckCircle className="mr-2 h-4 w-4 text-chart-2" /> : <Send className="mr-2 h-4 w-4" />} 
+              {buttonText} (WA)
+            </Button>
+            <Button {...commonProps} variant="secondary" onClick={() => handleSendEmail(recipient)}>
+              <Mail className="mr-2 h-4 w-4" /> Email
+            </Button>
+          </div>
+        );
+      case 'Sending':
+        return <Button {...commonProps} disabled><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...</Button>;
       default:
-        return <Button size="sm" disabled>Send</Button>;
+        return <Button {...commonProps} disabled>Send</Button>;
     }
   }
 
@@ -306,20 +421,22 @@ Thank you!`);
       </AlertDialog>
 
       <div className="space-y-6">
-          <div className="flex items-center gap-4">
-              <Button asChild>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <Button asChild className='w-full sm:w-auto'>
                   <label htmlFor="recipient-file-upload">
                       <Upload className="mr-2 h-4 w-4"/>
-                      Upload Recipient List
+                      Upload List
                   </label>
               </Button>
               <Input id="recipient-file-upload" type="file" className="hidden" onChange={handleFileUpload} accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" />
-              <p className="text-sm text-muted-foreground">Upload an Excel or CSV file.</p>
+              <p className="hidden sm:block text-sm text-muted-foreground">Upload an Excel or CSV file.</p>
               <div className="ml-auto">
                 <Button 
                   variant="destructive" 
                   onClick={() => setIsClearConfirmOpen(true)}
                   disabled={isRecipientsLoading || !recipients || recipients.length === 0 || isClearing}
+                  className='w-full sm:w-auto'
+                  size="sm"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Clear All
@@ -331,7 +448,7 @@ Thank you!`);
                   <TableHeader>
                       <TableRow>
                       <TableHead>Full Name</TableHead>
-                      <TableHead>WhatsApp Number</TableHead>
+                      <TableHead className="hidden md:table-cell">Contact</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
@@ -346,10 +463,19 @@ Thank you!`);
                       ) : recipients && recipients.length > 0 ? (
                           recipients.map(recipient => (
                           <TableRow key={recipient.id}>
-                              <TableCell className="font-medium">{recipient.fullName}</TableCell>
-                              <TableCell>{recipient.whatsappNumber}</TableCell>
+                              <TableCell className="font-medium">
+                                <div className="truncate w-40 sm:w-auto">{recipient.fullName}</div>
+                                <div className="text-muted-foreground text-sm md:hidden">{recipient.whatsappNumber}</div>
+                                <div className="text-muted-foreground text-xs md:hidden truncate w-40">{recipient.emailAddress}</div>
+                              </TableCell>
+                              <TableCell className="hidden md:table-cell">
+                                <div className="flex flex-col gap-1">
+                                  <span>{recipient.whatsappNumber}</span>
+                                  <span className="text-muted-foreground text-xs">{recipient.emailAddress}</span>
+                                </div>
+                              </TableCell>
                               <TableCell><StatusBadge status={recipient.status} /></TableCell>
-                              <TableCell className="text-right">{getButtonForStatus(recipient)}</TableCell>
+                              <TableCell className="text-right">{getButtonForStatus(recipient, false)}</TableCell>
                           </TableRow>
                           ))
                       ) : (
