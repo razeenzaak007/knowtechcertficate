@@ -10,8 +10,8 @@ import { useEffect, useState, use } from 'react';
 
 type Recipient = {
   id: string;
-  fullName?: string;
-  'Full Name'?: string; // Add fallback for old data
+  fullName: string;
+  'Full Name'?: string; // Fallback for old data
   age: number;
   bloodGroup: string;
   gender: string;
@@ -78,9 +78,9 @@ export default function CertificatePage({ params }: { params: { id: string } }) 
                 className="object-cover"
                 />
             )}
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform text-center" style={{ width: '80%', top: '52%' }}>
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform text-center" style={{ width: '80%', top: '51%' }}>
               <h1
-                className="font-headline text-sm font-bold text-black md:text-lg"
+                className="font-headline text-xl font-bold text-black md:text-3xl"
                 style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.1)' }}
               >
                 {recipientName}
