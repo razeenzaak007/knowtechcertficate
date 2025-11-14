@@ -23,7 +23,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import jsPDF from 'jspdf';
 
 type RecipientStatus = 'Pending' | 'Generating' | 'Generated' | 'Sending' | 'Sent' | 'Failed';
 
