@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Loader2, Download } from 'lucide-react';
-import { useEffect, useState, use, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import jsPDF from 'jspdf';
 
@@ -28,11 +28,9 @@ type Recipient = {
 };
 
 export default function CertificatePage({ params }: { params: { id: string } }) {
-  const resolvedParams = use(params);
   const [firestore, setFirestore] = useState<Firestore | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const certificateRef = useRef<HTMLDivElement>(null);
-
 
   useEffect(() => {
     const { firestore: fs } = initializeFirebase();
@@ -42,9 +40,9 @@ export default function CertificatePage({ params }: { params: { id: string } }) 
   const templateImage = PlaceHolderImages.find(img => img.id === 'certificate-template');
 
   const recipientRef = useMemoFirebase(() => {
-    if (!firestore || !resolvedParams.id) return null;
-    return doc(firestore, 'recipients', resolvedParams.id);
-  }, [firestore, resolvedParams.id]);
+    if (!firestore || !params.id) return null;
+    return doc(firestore, 'recipients', params.id);
+  }, [firestore, params.id]);
 
   const { data: recipient, isLoading } = useDoc<Recipient>(recipientRef);
 
