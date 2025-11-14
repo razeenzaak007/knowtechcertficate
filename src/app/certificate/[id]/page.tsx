@@ -149,7 +149,7 @@ export default function CertificatePage({ params }: { params: { id: string } }) 
                     )}
                     <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform text-center" style={{ width: '80%', top: '51%' }}>
                     <h1
-                        className="font-headline text-2xl font-bold text-black md:text-3xl"
+                        className="font-headline text-lg font-bold text-black md:text-xl"
                         style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.1)' }}
                     >
                         {recipientName}
@@ -159,10 +159,7 @@ export default function CertificatePage({ params }: { params: { id: string } }) 
                 </CardContent>
             </Card>
         </div>
-      <p className="my-4 text-sm text-gray-500">
-        Congratulations, {recipientName}!
-      </p>
-       <Button onClick={handleDownloadPdf} disabled={isDownloading}>
+       <Button onClick={handleDownloadPdf} disabled={isDownloading} className="my-4">
         {isDownloading ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
@@ -170,6 +167,9 @@ export default function CertificatePage({ params }: { params: { id: string } }) 
         )}
         {isDownloading ? 'Downloading...' : 'Download PDF'}
       </Button>
+      <p className="text-sm text-gray-500">
+        Congratulations, {recipientName}!
+      </p>
     </div>
   );
 }
