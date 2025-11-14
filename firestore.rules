@@ -8,7 +8,8 @@ service cloud.firestore {
     }
 
     match /recipients/{recipientId} {
-      allow read, update, delete: if isOwner(resource.data.userId);
+      allow read: if true;
+      allow update, delete: if isOwner(resource.data.userId);
       allow create: if isOwner(request.resource.data.userId);
     }
     
