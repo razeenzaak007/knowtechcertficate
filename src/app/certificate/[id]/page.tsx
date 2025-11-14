@@ -9,8 +9,6 @@ import { Loader2, Download } from 'lucide-react';
 import { useEffect, useState, use, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
-
 
 type Recipient = {
   id: string;
@@ -51,27 +49,66 @@ export default function CertificatePage({ params }: { params: { id: string } }) 
   const { data: recipient, isLoading } = useDoc<Recipient>(recipientRef);
 
   const handleDownloadPdf = async () => {
-    if (!certificateRef.current || !recipient) return;
+    if (!templateImage || !recipient) return;
 
     setIsDownloading(true);
     try {
-      const canvas = await html2canvas(certificateRef.current, {
-        scale: 3, // Increase scale for better quality
-      });
-      const imgData = canvas.toDataURL('image/png');
-      
-      // PDF dimensions based on A4 ratio (landscape)
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'px',
-        format: [canvas.width, canvas.height]
-      });
+        const recipientName = recipient.fullName || recipient['Full Name'] || 'Recipient Name';
+        const image = new window.Image();
+        image.crossOrigin = 'Anonymous'; // Required for images from different domains
+        image.src = templateImage.imageUrl;
 
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-      pdf.save(`Certificate-${recipient.fullName || recipient['Full Name']}.pdf`);
+        image.onload = () => {
+            const canvas = document.createElement('canvas');
+            const aspectRatio = image.width / image.height;
+            canvas.width = 1200; // Set a fixed width for high quality
+            canvas.height = canvas.width / aspectRatio;
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                setIsDownloading(false);
+                return;
+            }
+
+            // Draw the certificate background image
+            ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+            // Set text properties
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Adjust font size and position relative to canvas size
+            const fontSize = canvas.width * 0.04; 
+            ctx.font = `bold ${fontSize}px Literata, serif`;
+            ctx.fillStyle = 'black';
+            
+            // Calculate position
+            const x = canvas.width / 2;
+            const y = canvas.height * 0.51;
+
+            // Draw the recipient's name
+            ctx.fillText(recipientName, x, y);
+
+            // Create PDF
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'landscape',
+                unit: 'px',
+                format: [canvas.width, canvas.height]
+            });
+
+            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+            pdf.save(`Certificate-${recipientName}.pdf`);
+            setIsDownloading(false);
+        };
+
+        image.onerror = () => {
+            console.error("Error loading image for PDF generation.");
+            setIsDownloading(false);
+        }
+
     } catch (error) {
       console.error("Error generating PDF:", error);
-    } finally {
       setIsDownloading(false);
     }
   };
@@ -112,7 +149,7 @@ export default function CertificatePage({ params }: { params: { id: string } }) 
                     )}
                     <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform text-center" style={{ width: '80%', top: '51%' }}>
                     <h1
-                        className="font-headline text-lg font-bold text-black md:text-xl"
+                        className="font-headline text-2xl font-bold text-black md:text-3xl"
                         style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.1)' }}
                     >
                         {recipientName}
