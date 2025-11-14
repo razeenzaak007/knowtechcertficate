@@ -13,7 +13,7 @@ import jsPDF from 'jspdf';
 type Recipient = {
   id: string;
   fullName: string;
-  'Full Name'?: string;
+  'Full Name'?: string; // For fallback
   age: number;
   bloodGroup: string;
   gender: string;
@@ -30,7 +30,6 @@ type Recipient = {
 export default function CertificatePage({ params }: { params: { id: string } }) {
   const [firestore, setFirestore] = useState<Firestore | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
-  const certificateRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const { firestore: fs } = initializeFirebase();
@@ -76,7 +75,7 @@ export default function CertificatePage({ params }: { params: { id: string } }) 
             ctx.textBaseline = 'middle';
             
             // Adjust font size and position relative to canvas size
-            const fontSize = canvas.width * 0.035; 
+            const fontSize = canvas.width * 0.030;
             ctx.font = `bold ${fontSize}px Literata, serif`;
             ctx.fillStyle = 'black';
             
@@ -133,30 +132,31 @@ export default function CertificatePage({ params }: { params: { id: string } }) 
 
   return (
     <div className="flex min-h-screen w-full flex-col items-center justify-center bg-gray-100 p-4 sm:p-8">
-        <div ref={certificateRef}>
-            <Card className="w-full max-w-4xl overflow-hidden shadow-2xl">
-                <CardContent className="p-0">
-                <div className="relative aspect-[1.414/1] w-full">
-                    {templateImage && (
-                        <Image
-                        src={templateImage.imageUrl}
-                        alt="Certificate Background"
-                        fill
-                        className="object-cover"
-                        />
-                    )}
-                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform text-center" style={{ width: '80%', top: '51%' }}>
-                    <h1
-                        className="font-headline text-lg font-bold text-black md:text-xl"
-                        style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.1)' }}
-                    >
-                        {recipientName}
-                    </h1>
-                    </div>
-                </div>
-                </CardContent>
-            </Card>
-        </div>
+      <div className="w-full max-w-4xl">
+        <h2 className="mb-2 text-center text-lg font-semibold text-gray-600">Certificate Preview</h2>
+        <Card className="overflow-hidden shadow-2xl">
+          <CardContent className="p-0">
+            <div className="relative aspect-[1.414/1] w-full">
+              {templateImage && (
+                  <Image
+                  src={templateImage.imageUrl}
+                  alt="Certificate Background"
+                  fill
+                  className="object-cover"
+                  />
+              )}
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform text-center" style={{ width: '80%', top: '51%' }}>
+                <h1
+                  className="font-headline text-lg font-bold text-black md:text-xl"
+                  style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.1)' }}
+                >
+                  {recipientName}
+                </h1>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
        <Button onClick={handleDownloadPdf} disabled={isDownloading} className="my-4">
         {isDownloading ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
